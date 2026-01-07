@@ -29,7 +29,7 @@ body {
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     flex-wrap: wrap;
     gap: 15px;
-    z-index: 1100; /* Ensure header stays on top */
+    z-index: 1100;
 }
 
 .logo { display: flex; align-items: center; gap: 0.5rem; }
@@ -163,41 +163,41 @@ body {
 .popup-btn.primary { background: #667eea; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 5px;}
 .popup-btn.secondary { background: #e2e8f0; color: #333; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 5px;}
 
-/* --- LEAFLET ROUTING & MODE BUTTONS --- */
-/* This style handles the buttons for Walk/Bike/Car */
+/* --- LEAFLET ROUTING & MODE BUTTONS (DESKTOP) --- */
+/* The container for the Bike/Car buttons */
 .route-mode-controls {
-    margin-right: 60px; /* Default desktop margin to avoid Reset button */
-    margin-top: 10px;
-    z-index: 1000;
+    margin-right: 60px !important; /* Move left of Reset button */
+    margin-top: 10px !important;
+    z-index: 1000 !important;
 }
 
+/* The white instruction box */
 .leaflet-routing-container {
     background-color: white !important; 
     padding: 10px !important; 
     border-radius: 8px !important; 
     box-shadow: 0 4px 15px rgba(0,0,0,0.4) !important; 
-    max-height: 400px !important; 
+    max-height: 350px !important; 
     overflow-y: auto !important; 
     width: 300px !important; 
     font-size: 0.9rem !important; 
     
-    /* FIX: Position explicitly Top Right but LOWERED to avoid buttons */
+    /* FIX: Position it directly below the mode buttons */
     position: absolute !important;
-    top: 140px !important; 
-    right: 60px !important; 
+    top: 60px !important;  /* Push down just enough to clear buttons */
+    right: 60px !important; /* Align with the buttons */
     z-index: 99999 !important; 
     display: block; 
     opacity: 1 !important;
     transition: opacity 0.3s;
 }
 
-/* Class to hide the window without removing it (so narrator works) */
 .leaflet-routing-container.hidden-instructions { display: none !important; }
 .leaflet-routing-alt { max-height: 300px; overflow-y: auto; }
 .leaflet-routing-collapse-btn { display: none; }
 .routing-header { display: none; }
 
-/* Styles for the Destination Coordinates Popup */
+/* Destination Coordinates Popup */
 .dest-popup-container h4 { margin-bottom: 8px; font-size: 14px; color: #2d3748; }
 .dest-popup-inputs { display: flex; flex-direction: column; gap: 5px; }
 .dest-popup-inputs input { padding: 5px; border: 1px solid #cbd5e0; border-radius: 4px; font-size: 12px; }
@@ -234,14 +234,14 @@ body {
 
 /* --- RESPONSIVE MEDIA QUERIES (MOBILE) --- */
 @media (max-width: 768px) { 
-    /* Compact Header for Mobile */
-    .header { flex-direction: column; padding: 0.5rem 1rem; text-align: center; gap: 8px; } 
+    /* Compact Header */
+    .header { flex-direction: column; padding: 0.5rem; text-align: center; gap: 8px; } 
     .logo h1 { font-size: 1.2rem; }
     
     /* Layout Adjustments */
     .main-content { flex-direction: column-reverse; } 
-    .sidebar { width: 100%; height: 35vh; } 
-    .map-container { height: 65vh; } 
+    .sidebar { width: 100%; height: 40vh; } 
+    .map-container { height: 60vh; } 
     
     /* Full Width Elements */
     .search-bar { order: 2; width: 100%; margin: 5px 0; max-width: none; } 
@@ -250,19 +250,24 @@ body {
     .logo { width: 100%; justify-content: center; margin-bottom: 5px; } 
     #addProviderBtn { width: 100%; }
     
-    /* Routing Window on Mobile */
+    /* ROUTING CONTROLS ON MOBILE */
+    /* 1. Mode Buttons (Walk/Bike/Car) */
+    .route-mode-controls {
+        margin-right: 50px !important; /* Keep left of Reset button */
+        margin-top: 5px !important;
+    }
+
+    /* 2. Instruction Window */
     .leaflet-routing-container { 
         width: 90% !important; 
-        max-height: 200px !important; 
+        max-height: 180px !important; 
         font-size: 0.8rem; 
-        top: 80px !important; /* Move higher up */
+        
+        /* FIX: Position it cleanly below the mode buttons on mobile */
+        top: 60px !important; 
         right: 5% !important; 
-        left: 5% !important;
-    }
-    
-    /* Adjust Route Mode Buttons for Mobile */
-    .route-mode-controls {
-        margin-right: 50px !important; /* Adjust margin for mobile */
+        left: 5% !important; /* Center it */
+        z-index: 100000 !important;
     }
 
     /* Modal Adjustments */
@@ -271,5 +276,5 @@ body {
     .chat-window { width: 90%; right: 5%; bottom: 85px; } 
     
     /* Better Touch Targets */
-    input, select, button { min-height: 40px; font-size: 16px; /* Prevents zoom on iOS */ }
+    input, select, button { min-height: 44px; font-size: 16px; }
 }

@@ -1,10 +1,12 @@
 const pool = require('./db');
 
 export default async function handler(req, res) {
-  // 1. Log the method to check if request arrives
-  console.log("API Hit:", req.method);
-
+  // Setup CORS to allow your app to talk to the server
+  res.setHeader('Access-Control-Allow-Credentials', true);
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  
   if (req.method === 'GET') {
+    // LOGIN LOGIC
     const { username, password } = req.query;
     try {
       const result = await pool.query(
@@ -15,26 +17,23 @@ export default async function handler(req, res) {
       if (result.rows.length > 0) {
         res.status(200).json(result.rows[0]);
       } else {
-        // If 0 rows found, login failed
-        console.log("Login failed: User not found or wrong password");
-        res.status(401).json({ error: 'Invalid credentials' });
+        res.status(401).json({ error: 'User not found in database. Check spelling.' });
       }
     } catch (err) {
-      console.error("Login Database Error:", err);
-      res.status(500).json({ error: err.message });
+      console.error("Login Error:", err);
+      res.status(500).json({ error: "Database Connection Failed: " + err.message });
     }
   } 
   else if (req.method === 'POST') {
+    // REGISTER LOGIC
     try {
-      // 2. Safe Parsing: Handle body whether it comes as string or object
+      // --- THE FIX: Handle both String and Object data ---
       let bodyData = req.body;
       if (typeof req.body === 'string') {
         bodyData = JSON.parse(req.body);
       }
 
       const { username, password, role, securityQuestion, securityAnswer } = bodyData;
-      
-      console.log("Attempting to register:", username); // Debug log
 
       const result = await pool.query(
         'INSERT INTO users (username, password, role, security_question, security_answer) VALUES ($1, $2, $3, $4, $5) RETURNING *',
@@ -44,9 +43,8 @@ export default async function handler(req, res) {
       res.status(200).json(result.rows[0]);
 
     } catch (err) {
-      // 3. SEND THE REAL ERROR to the frontend
-      console.error("Registration Error:", err);
-      res.status(500).json({ error: "DB Error: " + err.message });
+      console.error("Register Error:", err);
+      res.status(500).json({ error: "Register Failed: " + err.message });
     }
   }
 }

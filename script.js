@@ -1164,7 +1164,7 @@ function processChatCommand(cmd) {
     return "I am not sure about that. I can help with Registration, Adding Shops, Routing (Walk/Bike/Car), Filters, or finding specific services like Plumbers or Mechanics. Try asking 'How do I route?'";
 }
 
-// --- GEOSERVER HYBRID FUNCTION ---
+// --- GEOSERVER HYBRID FUNCTION (FIXED) ---
 function toggleGeoServerLayer() {
     const btn = document.getElementById('togglePunjabBtn');
     const urlInput = document.getElementById('ngrokUrl');
@@ -1178,7 +1178,8 @@ function toggleGeoServerLayer() {
         return;
     }
 
-    if (map.hasLayer(punjabLayer)) {
+    // FIX: Check if punjabLayer is not null BEFORE checking if it's on the map
+    if (punjabLayer && map.hasLayer(punjabLayer)) {
         // If layer exists, remove it
         map.removeLayer(punjabLayer);
         punjabLayer = null;
@@ -1188,24 +1189,24 @@ function toggleGeoServerLayer() {
         btn.style.borderColor = "#d69e2e";
     } else {
         // Add the Layer
-        // NOTE: We assume Workspace = 'myproject' and Layer = 'punjab_boundary'
-        punjabLayer = L.tileLayer.wms(`${baseUrl}/geoserver/myproject/wms`, {
-            layers: 'myproject:punjab_boundary',
+        // UPDATED LAYER NAME: myprojectwebgis:punjab_boundary
+        punjabLayer = L.tileLayer.wms(`${baseUrl}/geoserver/myprojectwebgis/wms`, {
+            layers: 'myprojectwebgis:punjab_boundary',
             format: 'image/png',
             transparent: true,
             version: '1.1.0',
             attribution: '© Local GeoServer (Punjab Govt)'
         });
 
-        // Add to map and handle errors
+        // Add to map
         punjabLayer.addTo(map);
         
         // Update Button UI
         btn.textContent = "Hide Punjab Layer";
-        btn.style.background = "#d69e2e"; // Orange color to show it's active
+        btn.style.background = "#d69e2e";
         btn.style.color = "white";
 
-        alert("Attempting to load layer from your laptop... \nIf nothing shows, check:\n1. Is GeoServer running?\n2. Is the Layer name 'punjab_boundary'?\n3. Did you enable CORS in GeoServer?");
+        alert("Attempting to load layer 'myprojectwebgis:punjab_boundary'...");
     }
 }
 

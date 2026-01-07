@@ -29,6 +29,7 @@ body {
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     flex-wrap: wrap;
     gap: 15px;
+    z-index: 1100; /* Ensure header stays on top */
 }
 
 .logo { display: flex; align-items: center; gap: 0.5rem; }
@@ -162,7 +163,14 @@ body {
 .popup-btn.primary { background: #667eea; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 5px;}
 .popup-btn.secondary { background: #e2e8f0; color: #333; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 5px;}
 
-/* --- LEAFLET ROUTING FIXED POSITION & POPUP STYLES --- */
+/* --- LEAFLET ROUTING & MODE BUTTONS --- */
+/* This style handles the buttons for Walk/Bike/Car */
+.route-mode-controls {
+    margin-right: 60px; /* Default desktop margin to avoid Reset button */
+    margin-top: 10px;
+    z-index: 1000;
+}
+
 .leaflet-routing-container {
     background-color: white !important; 
     padding: 10px !important; 
@@ -175,7 +183,7 @@ body {
     
     /* FIX: Position explicitly Top Right but LOWERED to avoid buttons */
     position: absolute !important;
-    top: 140px !important; /* Changed from 20px to 140px */
+    top: 140px !important; 
     right: 60px !important; 
     z-index: 99999 !important; 
     display: block; 
@@ -184,10 +192,7 @@ body {
 }
 
 /* Class to hide the window without removing it (so narrator works) */
-.leaflet-routing-container.hidden-instructions {
-    display: none !important;
-}
-
+.leaflet-routing-container.hidden-instructions { display: none !important; }
 .leaflet-routing-alt { max-height: 300px; overflow-y: auto; }
 .leaflet-routing-collapse-btn { display: none; }
 .routing-header { display: none; }
@@ -227,26 +232,44 @@ body {
 .chat-input-area button { width: 40px; height: 40px; background: #667eea; color: white; border: none; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
 .chat-input-area button:hover { background: #5a67d8; }
 
-/* Responsive Media Queries */
+/* --- RESPONSIVE MEDIA QUERIES (MOBILE) --- */
 @media (max-width: 768px) { 
+    /* Compact Header for Mobile */
+    .header { flex-direction: column; padding: 0.5rem 1rem; text-align: center; gap: 8px; } 
+    .logo h1 { font-size: 1.2rem; }
+    
+    /* Layout Adjustments */
     .main-content { flex-direction: column-reverse; } 
-    .sidebar { width: 100%; height: 40vh; } 
-    .map-container { height: 60vh; } 
-    .header { flex-direction: column; padding: 1rem; text-align: center; gap: 10px; } 
+    .sidebar { width: 100%; height: 35vh; } 
+    .map-container { height: 65vh; } 
+    
+    /* Full Width Elements */
     .search-bar { order: 2; width: 100%; margin: 5px 0; max-width: none; } 
     .auth-section { order: 1; width: 100%; justify-content: flex-end; } 
     .user-actions { order: 3; width: 100%; } 
     .logo { width: 100%; justify-content: center; margin-bottom: 5px; } 
-    #addProviderBtn { width: 100%; } 
-}
+    #addProviderBtn { width: 100%; }
+    
+    /* Routing Window on Mobile */
+    .leaflet-routing-container { 
+        width: 90% !important; 
+        max-height: 200px !important; 
+        font-size: 0.8rem; 
+        top: 80px !important; /* Move higher up */
+        right: 5% !important; 
+        left: 5% !important;
+    }
+    
+    /* Adjust Route Mode Buttons for Mobile */
+    .route-mode-controls {
+        margin-right: 50px !important; /* Adjust margin for mobile */
+    }
 
-@media (max-width: 480px) { 
-    .sidebar { height: 50vh; } 
-    .map-container { height: 50vh; } 
-    .provider-card { padding: 0.8rem; } 
-    .logo h1 { font-size: 1.2rem; } 
-    .modal-content { width: 95%; top: 5%; } 
-    .small-modal { top: 15%; }
-    .leaflet-routing-container { width: 80%; max-height: 150px; font-size: 0.8rem; top: 160px !important;} /* Adjusted for mobile too */
+    /* Modal Adjustments */
+    .modal-content { width: 95%; top: 5%; max-height: 85vh; }
+    .small-modal { top: 10%; }
     .chat-window { width: 90%; right: 5%; bottom: 85px; } 
+    
+    /* Better Touch Targets */
+    input, select, button { min-height: 40px; font-size: 16px; /* Prevents zoom on iOS */ }
 }

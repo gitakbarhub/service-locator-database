@@ -477,11 +477,7 @@ function executeRouting(providerId, reverse) {
                 div.style.padding = '5px';
                 div.style.borderRadius = '5px';
                 div.style.boxShadow = '0 2px 6px rgba(0,0,0,0.3)';
-                div.style.marginBottom = '10px';
-                
-                // --- FIXED OVERLAP HERE ---
-                div.style.marginRight = '60px'; // Push buttons to the left of Reset Button
-                div.style.marginTop = '10px';
+                // Removed inline margins to let CSS handle responsiveness
                 
                 div.innerHTML = `
                     <button id="mode-walking" class="route-mode-btn" onclick="setRouteProfile('walking')" title="Walking"><i class="fas fa-walking"></i></button>

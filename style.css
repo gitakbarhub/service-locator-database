@@ -134,6 +134,12 @@ body {
 .form-group { margin-bottom: 1.5rem; padding: 0 1.5rem; }
 .form-actions { display: flex; gap: 1rem; padding: 1.5rem; border-top: 1px solid #e2e8f0; }
 
+/* --- PASSWORD TOGGLE --- */
+.password-wrapper { position: relative; display: flex; align-items: center; }
+.password-wrapper input { width: 100%; padding-right: 35px; } 
+.toggle-password { position: absolute; right: 10px; cursor: pointer; color: #a0aec0; z-index: 10; }
+.toggle-password:hover { color: #667eea; }
+
 /* --- DASHBOARD & DETAILS --- */
 .dashboard-stats { display: flex; gap: 20px; margin-bottom: 20px; }
 .stat-card { background: #f7fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; flex: 1; text-align: center; }

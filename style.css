@@ -173,12 +173,12 @@ body {
     width: 300px !important; 
     font-size: 0.9rem !important; 
     
-    /* FIX: Position explicitly Top Right to be visible */
+    /* FIX: Position explicitly Top Right but LOWERED to avoid buttons */
     position: absolute !important;
-    top: 20px !important; 
+    top: 140px !important; /* Changed from 20px to 140px */
     right: 60px !important; 
     z-index: 99999 !important; 
-    display: block; /* Default block, toggled by class below */
+    display: block; 
     opacity: 1 !important;
     transition: opacity 0.3s;
 }
@@ -247,6 +247,6 @@ body {
     .logo h1 { font-size: 1.2rem; } 
     .modal-content { width: 95%; top: 5%; } 
     .small-modal { top: 15%; }
-    .leaflet-routing-container { width: 80%; max-height: 150px; font-size: 0.8rem; top: 120px !important;} 
+    .leaflet-routing-container { width: 80%; max-height: 150px; font-size: 0.8rem; top: 160px !important;} /* Adjusted for mobile too */
     .chat-window { width: 90%; right: 5%; bottom: 85px; } 
 }

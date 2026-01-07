@@ -72,6 +72,16 @@
                         <label for="searchRadius">Search Radius: <span id="radiusValue">1 km</span></label>
                         <input type="range" id="searchRadius" min="0.5" max="5" value="1" step="0.5">
                     </div>
+                    
+                    <div class="filter-group" style="border-top: 2px dashed #cbd5e0; margin-top: 20px; padding-top: 15px;">
+                        <label style="color: #d69e2e;"><i class="fas fa-server"></i> Local GeoServer (Hybrid)</label>
+                        <small style="display:block; color:#718096; margin-bottom:5px;">Paste Ngrok URL to load Punjab Layer</small>
+                        <input type="text" id="ngrokUrl" placeholder="https://xxxx.ngrok-free.app" 
+                               style="margin-bottom: 8px; font-family: monospace; font-size: 0.85rem; width: 100%; padding: 0.5rem; border: 1px solid #e2e8f0; border-radius: 4px;">
+                        <button id="togglePunjabBtn" class="btn-secondary" style="border: 1px solid #d69e2e; width: 100%;">
+                            Load Punjab Layer
+                        </button>
+                    </div>
                     <button id="applyFilters" class="btn-primary">Apply Filters</button>
                 </div>
 

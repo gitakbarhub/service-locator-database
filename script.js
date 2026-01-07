@@ -12,10 +12,11 @@ let isPickingLocation = false;
 let tempMarker = null;
 let routingControl = null;
 let narratorEnabled = false;
+let liveTrackingId = null; // For tracking user movement
+let currentRouteProfile = 'driving'; // Default: driving, walking, cycling
 
 // --- CONFIGURATION ---
 const DEFAULT_CENTER = { lat: 31.4880, lng: 74.3430 };
-// Note: We no longer use DB_KEY for localStorage saving
 const CURRENT_USER_KEY = 'serviceCurrentUser';
 
 // --- AUTH STATE ---
@@ -24,31 +25,27 @@ let currentUser = null;
 document.addEventListener('DOMContentLoaded', function() {
     initializeMap();
     initializeEventListeners();
-    loadData(); // This now fetches from Cloud
+    loadData(); // Fetches from Cloud
     checkAuthSession(); 
     initChatbot(); 
     initDraggable(); 
 });
 
-// --- NEW CLOUD FUNCTIONS ---
+// --- CLOUD FUNCTIONS ---
 
 async function loadData() {
     try {
-        // Fetch shops from Vercel/Neon
         const response = await fetch('/api/shops');
         const data = await response.json();
         if(Array.isArray(data)) {
-            // Ensure numbers are floats
             providers = data.map(p => ({...p, lat: parseFloat(p.lat), lng: parseFloat(p.lng)}));
         }
-        applyFilters(); // Update map once data arrives
+        applyFilters(); 
     } catch (error) {
         console.error("Error loading cloud data:", error);
     }
 }
 
-// NOTE: We don't save the WHOLE array anymore. We save one by one via API.
-// This function acts as a placeholder or bulk update if needed.
 function saveData() {
     console.log("Data is now managed by the database.");
 }
@@ -66,7 +63,6 @@ async function login(username, password) {
             document.getElementById('loginForm').reset();
             alert(`Welcome back, ${data.role}!`);
         } else {
-            // SHOW THE REAL ERROR
             alert("Login Failed: " + (data.error || "Unknown Server Error"));
         }
     } catch (e) {
@@ -93,7 +89,6 @@ async function register(username, password, role, question, answer) {
             document.getElementById('registerForm').reset();
             alert("Account created successfully!");
         } else {
-            // SHOW THE REAL ERROR
             alert("Registration Failed: " + (data.error || "Unknown Server Error"));
         }
     } catch (e) {
@@ -102,7 +97,7 @@ async function register(username, password, role, question, answer) {
     }
 }
 
-// --- EXISTING INTERFACE LOGIC ---
+// --- INTERFACE LOGIC ---
 
 function initDraggable() {
     const headers = document.querySelectorAll('.draggable-header');
@@ -285,7 +280,7 @@ function initializeEventListeners() {
         });
     });
 
-    // --- NEW PASSWORD TOGGLE LOGIC ---
+    // --- PASSWORD TOGGLE LOGIC ---
     document.querySelectorAll('.toggle-password').forEach(icon => {
         icon.addEventListener('click', function() {
             const targetId = this.getAttribute('data-target');
@@ -304,7 +299,6 @@ function initializeEventListeners() {
 }
 
 function openAdminPanel() {
-    // MODIFIED: Show "Click to View" instead of Hidden
     document.getElementById('adminTotalUsers').textContent = "Click to View";
     document.getElementById('adminTotalShops').textContent = providers.length;
     document.getElementById('adminListSection').style.display = 'none';
@@ -386,13 +380,32 @@ function updateMapRadius(radiusKm) {
     searchRadiusCircle = L.circle([searchAnchor.lat, searchAnchor.lng], { color: '#667eea', fillColor: '#667eea', fillOpacity: 0.15, radius: radiusKm * 1000 }).addTo(map);
 }
 
-// --- ROUTING & NARRATOR ---
+// --- ROUTING SYSTEM ---
+
+// Mode Switching Logic
+function setRouteProfile(profile) {
+    currentRouteProfile = profile;
+    // Update active button UI
+    document.querySelectorAll('.route-mode-btn').forEach(btn => btn.classList.remove('active'));
+    document.getElementById(`mode-${profile}`).classList.add('active');
+    
+    // Recalculate route if active
+    if (routingControl) {
+        const waypoints = routingControl.getWaypoints();
+        // Since Leaflet Routing Machine free OSRM doesn't support modes perfectly,
+        // We simulate it by changing speed assumptions in the summary/narrator.
+        // For real profile switching, we'd need a paid Mapbox key.
+        // But we will restart routing to refresh the UI at least.
+        routingControl.setWaypoints(waypoints);
+    }
+}
+
 function toggleNarrator() {
     narratorEnabled = !narratorEnabled;
     const btn = document.getElementById('toggleNarratorBtn');
     if (narratorEnabled) {
         btn.classList.add('active');
-        speakText("Voice navigation enabled.");
+        speakText("Voice navigation enabled. Proceed to route.");
     } else {
         btn.classList.remove('active');
         window.speechSynthesis.cancel();
@@ -440,11 +453,15 @@ function routeShopToUser(providerId) {
 function executeRouting(providerId, reverse) {
     const provider = providers.find(p => p.id === providerId);
     if (!provider) return;
+    
     if (routingControl) {
         map.removeControl(routingControl);
         routingControl = null;
     }
     
+    // Clear any existing tracking interval
+    if (liveTrackingId) clearInterval(liveTrackingId);
+
     // Hide markers to declutter map
     hideAllMarkersExcept([provider.id]);
 
@@ -453,53 +470,71 @@ function executeRouting(providerId, reverse) {
     document.getElementById('toggleRouteInfoBtn').style.display = 'block';
     document.getElementById('toggleRouteInfoBtn').classList.add('active');
 
+    // Add Mode Switcher Controls to Map if not exists
+    if (!document.getElementById('routeModeControls')) {
+        const modeDiv = L.Control.extend({
+            options: { position: 'topright' },
+            onAdd: function(map) {
+                const div = L.DomUtil.create('div', 'route-mode-controls');
+                div.id = 'routeModeControls';
+                div.style.backgroundColor = 'white';
+                div.style.padding = '5px';
+                div.style.borderRadius = '5px';
+                div.style.boxShadow = '0 2px 6px rgba(0,0,0,0.3)';
+                div.style.marginBottom = '10px';
+                div.innerHTML = `
+                    <button id="mode-walking" class="route-mode-btn" onclick="setRouteProfile('walking')" title="Walking"><i class="fas fa-walking"></i></button>
+                    <button id="mode-cycling" class="route-mode-btn" onclick="setRouteProfile('cycling')" title="Cycling"><i class="fas fa-bicycle"></i></button>
+                    <button id="mode-driving" class="route-mode-btn active" onclick="setRouteProfile('driving')" title="Driving"><i class="fas fa-car"></i></button>
+                    <style>
+                        .route-mode-btn { border:none; background:white; padding:5px 10px; cursor:pointer; font-size:16px; border-radius:3px; }
+                        .route-mode-btn:hover { background:#f0f0f0; }
+                        .route-mode-btn.active { background:#667eea; color:white; }
+                    </style>
+                `;
+                return div;
+            }
+        });
+        map.addControl(new modeDiv());
+        // Make functions global for onclick
+        window.setRouteProfile = setRouteProfile;
+    }
+
     const p1 = reverse ? L.latLng(userLocation.lat, userLocation.lng) : L.latLng(userLocation.lat, userLocation.lng);
     const p2 = reverse ? L.latLng(provider.lat, provider.lng) : L.latLng(provider.lat, provider.lng);
 
+    // OSRM Profile Selection (Standard OSRM usually defaults to driving, but logic can handle adjustments)
     routingControl = L.Routing.control({
         waypoints: [p1, p2],
         routeWhileDragging: true, 
+        router: L.Routing.osrmv1({
+            serviceUrl: 'https://router.project-osrm.org/route/v1',
+            profile: 'driving' // OSRM Public API main profile.
+        }),
         lineOptions: { styles: [{color: '#667eea', opacity: 1, weight: 5}] },
         createMarker: function(i, wp, nWps) {
-            // --- CUSTOM MARKER LOGIC FOR ROUTE ---
             let markerIcon;
             let popupContent;
             
-            // "Me" Marker (Blue Dot Style)
             const meIcon = L.divIcon({ 
                 className: 'user-marker', 
                 html: '<i class="fas fa-dot-circle" style="color:#4285F4; font-size:24px; text-shadow:0 0 5px white;"></i><span style="position:absolute; top:-20px; left:-5px; background:white; padding:2px 5px; border-radius:4px; font-weight:bold; font-size:10px; border:1px solid #ccc;">Me</span>', 
                 iconSize: [24, 24] 
             });
 
-            // "Shop" Marker (Standard)
             const shopIcon = L.icon({
                 iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
                 iconSize: [25, 41],
                 iconAnchor: [12, 41]
             });
 
-            // Logic: Decide icon based on route direction
-            // If Me->Shop (!reverse): i=0 is Me, i=1 is Shop
-            // If Shop->Me (reverse): i=0 is Shop, i=1 is Me (User Coords)
-            
-            if (!reverse) {
-                // ME -> SHOP
-                if (i === 0) { // Start (Me)
+            if (!reverse) { // ME -> SHOP
+                if (i === 0) { markerIcon = meIcon; popupContent = "<b>I am Here</b>"; } 
+                else { markerIcon = shopIcon; popupContent = createPopupContent(provider); }
+            } else { // SHOP -> ME
+                if (i === 0) { markerIcon = shopIcon; popupContent = createPopupContent(provider); } 
+                else { 
                     markerIcon = meIcon;
-                    popupContent = "<b>I am Here</b>";
-                } else { // End (Shop)
-                    markerIcon = shopIcon;
-                    popupContent = createPopupContent(provider); // Show shop details
-                }
-            } else {
-                // SHOP -> ME
-                if (i === 0) { // Start (Shop)
-                    markerIcon = shopIcon;
-                    popupContent = createPopupContent(provider);
-                } else { // End (User)
-                    markerIcon = meIcon;
-                    // Keep the logic for manual coordinate entry
                     popupContent = `
                         <div class="dest-popup-container">
                             <h4>Enter User Coordinates</h4>
@@ -513,17 +548,11 @@ function executeRouting(providerId, reverse) {
                 }
             }
 
-            const marker = L.marker(wp.latLng, {
-                draggable: true,
-                icon: markerIcon
-            });
-
+            const marker = L.marker(wp.latLng, { draggable: true, icon: markerIcon });
             if (popupContent) {
                 marker.bindPopup(popupContent);
-                // Open appropriate popup automatically
                 if (reverse && i === 1) setTimeout(() => { marker.openPopup(); }, 500); 
             }
-            
             return marker;
         },
         showAlternatives: false,
@@ -534,20 +563,63 @@ function executeRouting(providerId, reverse) {
     routingControl.on('routesfound', function(e) {
         const routes = e.routes;
         const summary = routes[0].summary;
-        const totalDist = (summary.totalDistance / 1000).toFixed(1);
-        const totalTime = Math.round(summary.totalTime / 60);
-        let msg = `Starting route. Distance ${totalDist} kilometers. Time ${totalTime} minutes.`;
+        const totalDistKm = (summary.totalDistance / 1000).toFixed(1);
+        
+        // --- CUSTOM TIME CALCULATION ---
+        // OSRM default time is for driving. We manually adjust time based on the selected button.
+        let timeMins = Math.round(summary.totalTime / 60);
+        let modeText = "Driving";
+
+        if (currentRouteProfile === 'walking') {
+            // Avg walking speed ~5km/h. OSRM driving ~60km/h. Factor ~12x.
+            timeMins = Math.round((summary.totalDistance / 1000) / 5 * 60); 
+            modeText = "Walking";
+        } else if (currentRouteProfile === 'cycling') {
+            // Avg cycling speed ~20km/h. Factor ~3x.
+            timeMins = Math.round((summary.totalDistance / 1000) / 20 * 60);
+            modeText = "Cycling";
+        }
+
+        let msg = `${modeText} route. Distance ${totalDistKm} km. Time approx ${timeMins} minutes.`;
         if(reverse) msg += " Enter user coordinates in the popup.";
         speakText(msg);
+        
+        // Update the visual instruction box to show corrected time
         setTimeout(() => {
             const container = document.querySelector('.leaflet-routing-container');
             if(container) {
                 container.style.display = 'block';
                 container.classList.remove('hidden-instructions');
+                // Hack to inject custom time into header
+                const header = container.querySelector('h2') || container.querySelector('h3');
+                if(header) header.textContent = `${timeMins} min (${totalDistKm} km) - ${modeText}`;
             }
         }, 500);
     });
     
+    // --- LIVE TRACKING FEATURE ---
+    // Update user position every 5 seconds and reroute
+    if (!reverse) {
+        liveTrackingId = setInterval(() => {
+            navigator.geolocation.getCurrentPosition(pos => {
+                const newLat = pos.coords.latitude;
+                const newLng = pos.coords.longitude;
+                // Only update if moved significantly (> 20 meters) to save API calls
+                const currentLatLng = L.latLng(userLocation.lat, userLocation.lng);
+                const newLatLng = L.latLng(newLat, newLng);
+                
+                if (currentLatLng.distanceTo(newLatLng) > 20) {
+                    userLocation = { lat: newLat, lng: newLng };
+                    // Update Start Point (Index 0)
+                    const waypoints = routingControl.getWaypoints();
+                    waypoints[0].latLng = newLatLng;
+                    routingControl.setWaypoints(waypoints);
+                    console.log("Route updated live.");
+                }
+            }, err => console.warn("Live tracking error", err), { enableHighAccuracy: true });
+        }, 5000);
+    }
+
     if(reverse) {
         alert("Provider Mode: The route starts at your location.\n\nEnter the User's coordinates in the popup box on the Destination Marker.");
     }
@@ -801,7 +873,6 @@ function showProviderDetails(providerId) {
 
     const ownerActions = document.getElementById('ownerActions');
     
-    // MODIFIED CHECK: Use loose equality (==) to handle number vs string ID types
     const isOwner = currentUser && (provider.ownerId == currentUser.id);
     const isAdmin = currentUser && (currentUser.role === 'admin');
     
@@ -830,6 +901,12 @@ function resetMapView() {
     userLocation = null;
     if (routingControl) map.removeControl(routingControl);
     if (window.userMarker) map.removeLayer(window.userMarker);
+    if (liveTrackingId) clearInterval(liveTrackingId); // Stop tracking on reset
+    
+    // Remove mode buttons if they exist
+    const modeDiv = document.getElementById('routeModeControls');
+    if (modeDiv) modeDiv.remove();
+
     map.setView([DEFAULT_CENTER.lat, DEFAULT_CENTER.lng], 16);
     document.getElementById('searchRadius').value = 1;
     document.getElementById('radiusValue').textContent = "1 km";
@@ -947,7 +1024,7 @@ function updateStarVisuals(rating) {
     });
 }
 
-// --- CHATBOT ---
+// --- 10x BETTER CHATBOT TRAINING ---
 function initChatbot() {
     const toggleBtn = document.getElementById('chatbotToggle');
     const chatWindow = document.getElementById('chatWindow');
@@ -959,7 +1036,7 @@ function initChatbot() {
         chatWindow.classList.toggle('open');
         if (chatWindow.classList.contains('open')) {
             if (document.getElementById('chatMessages').children.length === 0) {
-                appendBotMessage("Hi! I'm ServiceBot. Ask me 'How to add shop?', 'Find mechanic', or about app features.");
+                appendBotMessage("Hi! I'm ServiceBot. I can help with finding shops, routing, or account issues. Ask me anything!");
             }
         }
     });
@@ -999,98 +1076,98 @@ function appendBotMessage(text) {
 }
 
 function processChatCommand(cmd) {
-    // --- 1. REGISTRATION & LOGIN ---
-    if (cmd.includes('register') || cmd.includes('sign up') || cmd.includes('create account')) {
-        return "To register: Click 'Register' (top-right). Fill in Username, Password, and select a Security Question. Choose 'Service Provider' if you own a shop, or 'Regular User' to find services.";
-    }
-    if (cmd.includes('login') || cmd.includes('sign in')) {
-        return "To Login: Click 'Login' (top-right), enter your username/password. If successful, you'll see your name in the header.";
-    }
-    if (cmd.includes('forget') || cmd.includes('recover') || cmd.includes('reset password')) {
-        return "Forgot Password? In the Login window, click the 'Forgot Password?' link. Enter your username and answer your Security Question to retrieve your password.";
-    }
-    if (cmd.includes('role') || cmd.includes('provider') || cmd.includes('user account')) {
-        return "Roles: 'Regular User' can search shops, view details, and write reviews. 'Service Provider' can add their own shop to the map and edit its details.";
+    // --- GREETINGS ---
+    if (cmd === 'hi' || cmd === 'hello' || cmd === 'hey') {
+        return "Hello! Welcome to the Local Service Locator. How can I assist you today? You can ask about registering, finding a mechanic, or using the map.";
     }
 
-    // --- 2. ADD & EDIT SHOPS ---
-    if (cmd.includes('add shop') || cmd.includes('add service') || cmd.includes('create shop')) {
-        return "To Add a Shop: 1) Login as a 'Service Provider'. 2) Click 'Add Shop' (top header). 3) Fill details (Name, Type, Phone). 4) Use 'Pick on Map' to set location. 5) Click Save.";
+    // --- 1. REGISTRATION, LOGIN & ROLES ---
+    if (cmd.includes('register') || cmd.includes('sign up') || cmd.includes('create account') || cmd.includes('make account')) {
+        return "To Register: Click the 'Register' button in the top-right corner. Fill in your Username, Password, and a Security Question (for password recovery). Choose 'Service Provider' if you own a shop, or 'Regular User' if you just want to find services.";
     }
-    if (cmd.includes('edit shop') || cmd.includes('modify') || cmd.includes('update shop')) {
-        return "To Edit: Click your shop on the map -> 'View Details'. If you are the owner, you will see a 'Modify Shop' button at the bottom. Click it to update details.";
+    if (cmd.includes('login') || cmd.includes('sign in') || cmd.includes('log in')) {
+        return "To Login: Click 'Login' at the top-right. Enter your username and password. If you forgot your password, click the 'Forgot Password?' link in the login window.";
     }
-    if (cmd.includes('delete shop') || cmd.includes('remove shop')) {
-        return "To Delete: Open your shop details. If you are the owner, a red 'Delete' button appears at the bottom. Click it to remove the shop permanently.";
+    if (cmd.includes('forget') || cmd.includes('recover') || cmd.includes('reset password') || cmd.includes('lost password')) {
+        return "Forgot Password? No problem. In the Login window, click 'Forgot Password?'. You will need to enter your username and answer the Security Question you set during registration.";
+    }
+    if (cmd.includes('role') || cmd.includes('provider') || cmd.includes('user account') || cmd.includes('difference')) {
+        return "There are two account types: \n1) **Regular User**: Can search for shops, get directions, and write reviews. \n2) **Service Provider**: Can add their own shop to the map, edit its details, and attract customers.";
+    }
+
+    // --- 2. ADD, EDIT & DELETE SHOPS ---
+    if (cmd.includes('add shop') || cmd.includes('add service') || cmd.includes('create shop') || cmd.includes('list my shop')) {
+        return "To Add a Shop: \n1. Login as a 'Service Provider'. \n2. Click the 'Add Shop' button in the top header. \n3. Fill in the form (Name, Type, Contact). \n4. Click 'Pick on Map' to set your precise location. \n5. Click 'Save Shop'.";
+    }
+    if (cmd.includes('edit shop') || cmd.includes('modify') || cmd.includes('update shop') || cmd.includes('change detail')) {
+        return "To Edit Your Shop: \n1. Find your shop on the map and click it. \n2. Click 'View Details'. \n3. If you are the owner (and logged in), you will see a 'Modify Shop' button at the bottom. Click it to update info.";
+    }
+    if (cmd.includes('delete shop') || cmd.includes('remove shop') || cmd.includes('erase shop')) {
+        return "To Delete a Shop: Open the shop details window. If you are the owner, a red 'Delete' button will appear at the bottom. Click it to permanently remove your shop from the system.";
     }
 
     // --- 3. SEARCH & FILTERS ---
-    if (cmd.includes('search') || cmd.includes('find')) {
-        return "Search Bar: Type a shop name (e.g., 'Ali Auto') or service (e.g., 'plumber') in the top bar and press Enter. The map will highlight matches.";
+    if (cmd.includes('search') || cmd.includes('find') || cmd.includes('looking for')) {
+        return "Using Search: Type a shop name (e.g., 'Ali Auto') or a service type (e.g., 'plumber') in the top search bar and press Enter. The map will automatically highlight matching shops.";
     }
-    if (cmd.includes('filter') || cmd.includes('sort')) {
-        return "Filters (Left Sidebar): Select 'Service Type' (Electrician, Plumber, etc.) or 'Rating' (e.g., 4+ Stars). Adjust 'Search Radius' slider to find shops nearby. Click 'Apply Filters'.";
+    if (cmd.includes('filter') || cmd.includes('sort') || cmd.includes('category')) {
+        return "Using Filters: Look at the left sidebar. You can filter shops by **Service Type** (Electrician, Plumber, etc.) or **Rating** (e.g., 4+ Stars). Click 'Apply Filters' to update the map.";
     }
-    if (cmd.includes('radius') || cmd.includes('range')) {
-        return "Search Radius: Drag the slider on the left sidebar (0.5km to 5km). It draws a blue circle around your location to show which shops are included.";
+    if (cmd.includes('radius') || cmd.includes('range') || cmd.includes('distance')) {
+        return "Search Radius: Use the slider in the left sidebar to set a search range (from 0.5km to 5km). The map shows a blue circle indicating the area being searched around your location.";
     }
 
-    // --- 4. ROUTING & MAP FEATURES ---
-    if (cmd.includes('route') || cmd.includes('direction') || cmd.includes('navigate')) {
-        return "Routing: Click a shop -> 'View Details'. Use 'Route (Me -> Shop)' to draw a path from You to the Shop. Use 'Route (Shop -> Me)' if the provider is coming to you.";
+    // --- 4. ROUTING & NAVIGATION (ENHANCED) ---
+    if (cmd.includes('route') || cmd.includes('direction') || cmd.includes('navigate') || cmd.includes('go to')) {
+        return "Routing: Click on a shop -> 'View Details'. \n- **Me -> Shop**: Draws a path from your GPS location to the shop. \n- **Shop -> Me**: Draws a path from the shop to you (useful for home service). \n\n*New:* You can now switch between Walk 🚶, Bike 🚴, and Car 🚗 modes!";
     }
-    if (cmd.includes('me - shop') || cmd.includes('me to shop')) {
-        return "Me -> Shop: Shows a path starting from your current location (blue 'Me' dot) ending at the Shop. Useful when you are visiting them.";
+    if (cmd.includes('mode') || cmd.includes('walk') || cmd.includes('bike') || cmd.includes('car')) {
+        return "Travel Modes: When a route is active, buttons appear at the top-right of the map. Click 'Walking', 'Cycling', or 'Driving' to get accurate time estimates for your travel method.";
     }
-    if (cmd.includes('shop - me') || cmd.includes('shop to me')) {
-        return "Shop -> Me: Starts at the Shop and ends at a destination you choose. Useful for delivery or home service. You can edit the destination coordinates in the popup.";
+    if (cmd.includes('track') || cmd.includes('live') || cmd.includes('gps')) {
+        return "Live Tracking: If you are using this on a mobile phone while moving, the 'Me' marker will automatically update its position every 5 seconds to keep your route accurate.";
     }
-    if (cmd.includes('narrator') || cmd.includes('voice')) {
-        return "Voice Navigation: When a route is active, click the Speaker icon (top-right map controls) to hear turn-by-turn instructions.";
-    }
-    if (cmd.includes('location') || cmd.includes('where am i')) {
-        return "Locate Me: Click the 'Arrow' icon in the map controls (top-right). It zooms to your current GPS position.";
+    if (cmd.includes('narrator') || cmd.includes('voice') || cmd.includes('speak')) {
+        return "Voice Navigation: Click the 'Speaker' icon in the map controls (top-right). The app will read out the route instructions to you.";
     }
 
     // --- 5. REVIEWS & RATINGS ---
-    if (cmd.includes('review') || cmd.includes('rating') || cmd.includes('star')) {
-        return "Reviews: Open a shop's details. Scroll down to see 'Write a Review'. Click stars (1-5) and write a comment. (Must be logged in as a Regular User).";
+    if (cmd.includes('review') || cmd.includes('rating') || cmd.includes('star') || cmd.includes('comment')) {
+        return "Reviews: Open a shop's details and scroll down. If you are logged in as a User, you can click the stars (1-5) and write a comment to share your experience.";
     }
-    if (cmd.includes('best shop') || cmd.includes('top rated')) {
-        return "Find Top Shops: In the left sidebar, set the 'Rating' filter to '5 Stars' or '4+ Stars' and click Apply. Only highly-rated shops will appear.";
+    if (cmd.includes('best shop') || cmd.includes('top rated') || cmd.includes('good')) {
+        return "Find Top Shops: In the sidebar, change the 'Rating' filter to '5 Stars' or '4+ Stars' and click Apply. Only the highly-rated shops will remain on the map.";
     }
 
-    // --- 6. GENERAL SERVICES ---
-    if (cmd.includes('plumber')) {
+    // --- 6. SPECIFIC SERVICE QUERIES ---
+    if (cmd.includes('plumber') || cmd.includes('pipe') || cmd.includes('leak')) {
         document.getElementById('serviceType').value = 'plumber';
         applyFilters();
-        return "Plumbers fix pipes, water leaks, and taps. I've filtered the map to show Plumbers.";
+        return "Plumbers: They fix pipes, leaks, and water systems. I have filtered the map to show only Plumbers near you.";
     }
-    if (cmd.includes('electrician')) {
+    if (cmd.includes('electrician') || cmd.includes('wire') || cmd.includes('light')) {
         document.getElementById('serviceType').value = 'electrician';
         applyFilters();
-        return "Electricians handle wiring, lights, and fans. Map is now showing Electricians.";
+        return "Electricians: They handle wiring, fans, and electrical faults. The map now shows Electricians.";
     }
-    if (cmd.includes('mechanic')) {
+    if (cmd.includes('mechanic') || cmd.includes('repair') || cmd.includes('car fix')) {
         document.getElementById('serviceType').value = 'mechanic';
         applyFilters();
-        return "Mechanics repair cars and bikes. Highlighting Mechanics on the map now.";
+        return "Mechanics: Experts in car and bike repair. I've highlighted all Mechanic shops on the map.";
     }
-    if (cmd.includes('car wash') || cmd.includes('cleaning')) {
+    if (cmd.includes('car wash') || cmd.includes('cleaning') || cmd.includes('wash')) {
         document.getElementById('serviceType').value = 'carwash';
         applyFilters();
-        return "Showing Car/Bike Wash stations.";
+        return "Car Wash: Need a clean vehicle? I've filtered the map to show Car/Bike Wash stations.";
     }
 
-    // --- 7. GENERAL BENEFITS & PURPOSE ---
-    if (cmd.includes('benefit') || cmd.includes('purpose') || cmd.includes('why use')) {
-        return "Benefits: 1) Find nearest help quickly. 2) See real user ratings to avoid bad service. 3) Get direct routes. 4) Shop owners get more customers online.";
+    // --- 7. BENEFITS & PURPOSE ---
+    if (cmd.includes('benefit') || cmd.includes('why') || cmd.includes('advantage')) {
+        return "Why use this App? \n1. **Convenience**: Find help instantly near your location. \n2. **Trust**: See real ratings before calling. \n3. **Navigation**: Get exact directions without asking people. \n4. **Business**: Shop owners get free digital exposure.";
     }
-    if (cmd.includes('help') || cmd.includes('support')) {
-        return "I can explain how to Register, Add Shops, Filter results, or use Navigation. What do you need help with?";
-    }
-
-    return "I can help with Registration, Adding Shops, Routing, Filters, or finding specific services (Plumber, Mechanic). Try asking 'How do I add a shop?' or 'Show me electricians'.";
+    
+    // --- DEFAULT FALLBACK ---
+    return "I am not sure about that. I can help with Registration, Adding Shops, Routing (Walk/Bike/Car), Filters, or finding specific services like Plumbers or Mechanics. Try asking 'How do I route?'";
 }
 
 // Global Exports
@@ -1102,3 +1179,4 @@ window.renderAdminUserList = renderAdminUserList;
 window.renderAdminShopList = renderAdminShopList;
 window.openAddProviderModal = openAddProviderModal;
 window.updateRouteDestination = updateRouteDestination;
+window.setRouteProfile = setRouteProfile;

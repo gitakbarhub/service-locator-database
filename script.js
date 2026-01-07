@@ -15,6 +15,9 @@ let narratorEnabled = false;
 let liveTrackingId = null; // For tracking user movement
 let currentRouteProfile = 'driving'; // Default: driving, walking, cycling
 
+// --- GEOSERVER VARIABLE ---
+let punjabLayer = null; // Variable to hold the GeoServer layer
+
 // --- CONFIGURATION ---
 const DEFAULT_CENTER = { lat: 31.4880, lng: 74.3430 };
 const CURRENT_USER_KEY = 'serviceCurrentUser';
@@ -215,6 +218,9 @@ function initializeEventListeners() {
     document.getElementById('setSatelliteMap').addEventListener('click', () => setBasemap('satellite'));
     document.getElementById('toggleNarratorBtn').addEventListener('click', toggleNarrator);
     document.getElementById('toggleRouteInfoBtn').addEventListener('click', toggleRouteWindow);
+
+    // --- NEW GEOSERVER LISTENER ---
+    document.getElementById('togglePunjabBtn').addEventListener('click', toggleGeoServerLayer);
 
     const radiusSlider = document.getElementById('searchRadius');
     if (radiusSlider) {
@@ -1156,6 +1162,51 @@ function processChatCommand(cmd) {
     
     // --- DEFAULT FALLBACK ---
     return "I am not sure about that. I can help with Registration, Adding Shops, Routing (Walk/Bike/Car), Filters, or finding specific services like Plumbers or Mechanics. Try asking 'How do I route?'";
+}
+
+// --- GEOSERVER HYBRID FUNCTION ---
+function toggleGeoServerLayer() {
+    const btn = document.getElementById('togglePunjabBtn');
+    const urlInput = document.getElementById('ngrokUrl');
+    let baseUrl = urlInput.value.trim();
+
+    // Remove trailing slash if user added it
+    if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
+
+    if (!baseUrl) {
+        alert("⚠️ Please paste your Ngrok URL first!\nExample: https://random-id.ngrok-free.app");
+        return;
+    }
+
+    if (map.hasLayer(punjabLayer)) {
+        // If layer exists, remove it
+        map.removeLayer(punjabLayer);
+        punjabLayer = null;
+        btn.textContent = "Load Punjab Layer";
+        btn.style.background = ""; // Reset color
+        btn.style.color = "";
+        btn.style.borderColor = "#d69e2e";
+    } else {
+        // Add the Layer
+        // NOTE: We assume Workspace = 'myproject' and Layer = 'punjab_boundary'
+        punjabLayer = L.tileLayer.wms(`${baseUrl}/geoserver/myproject/wms`, {
+            layers: 'myproject:punjab_boundary',
+            format: 'image/png',
+            transparent: true,
+            version: '1.1.0',
+            attribution: '© Local GeoServer (Punjab Govt)'
+        });
+
+        // Add to map and handle errors
+        punjabLayer.addTo(map);
+        
+        // Update Button UI
+        btn.textContent = "Hide Punjab Layer";
+        btn.style.background = "#d69e2e"; // Orange color to show it's active
+        btn.style.color = "white";
+
+        alert("Attempting to load layer from your laptop... \nIf nothing shows, check:\n1. Is GeoServer running?\n2. Is the Layer name 'punjab_boundary'?\n3. Did you enable CORS in GeoServer?");
+    }
 }
 
 // Global Exports

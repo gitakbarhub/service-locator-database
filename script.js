@@ -53,22 +53,27 @@ function saveData() {
     console.log("Data is now managed by the database.");
 }
 
+// --- PASTE THIS NEW CODE ---
+
 async function login(username, password) {
     try {
         const response = await fetch(`/api/users?username=${username}&password=${password}`);
+        const data = await response.json(); 
+        
         if (response.ok) {
-            const user = await response.json();
-            currentUser = user;
-            localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
+            currentUser = data;
+            localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(data));
             updateUIForUser();
             document.getElementById('loginModal').style.display = 'none';
             document.getElementById('loginForm').reset();
-            alert(`Welcome back, ${user.role}!`);
+            alert(`Welcome back, ${data.role}!`);
         } else {
-            alert("Invalid credentials.");
+            // SHOW THE REAL ERROR
+            alert("Login Failed: " + (data.error || "Unknown Server Error"));
         }
     } catch (e) {
-        alert("Login error. Check connection.");
+        alert("Network Error: Check your internet connection.");
+        console.error(e);
     }
 }
 
@@ -80,14 +85,25 @@ async function register(username, password, role, question, answer) {
             body: JSON.stringify(userData)
         });
 
+        const data = await response.json(); 
+
         if (response.ok) {
-            const newUser = await response.json();
-            currentUser = newUser;
-            localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(newUser));
+            currentUser = data;
+            localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(data));
             updateUIForUser();
             document.getElementById('registerModal').style.display = 'none';
             document.getElementById('registerForm').reset();
-            alert("Account created successfully in Cloud!");
+            alert("Account created successfully!");
+        } else {
+            // SHOW THE REAL ERROR
+            alert("Registration Failed: " + (data.error || "Unknown Server Error"));
+        }
+    } catch (e) {
+        alert("Network Error: Could not reach the server.");
+        console.error(e);
+    }
+}
+// --- END OF NEW CODE ---
         } else {
             alert("Username likely exists.");
         }

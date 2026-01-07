@@ -284,6 +284,23 @@ function initializeEventListeners() {
             this.parentElement.setAttribute('data-selected-rating', rating);
         });
     });
+
+    // --- NEW PASSWORD TOGGLE LOGIC ---
+    document.querySelectorAll('.toggle-password').forEach(icon => {
+        icon.addEventListener('click', function() {
+            const targetId = this.getAttribute('data-target');
+            const input = document.getElementById(targetId);
+            if (input.type === 'password') {
+                input.type = 'text';
+                this.classList.remove('fa-eye');
+                this.classList.add('fa-eye-slash');
+            } else {
+                input.type = 'password';
+                this.classList.remove('fa-eye-slash');
+                this.classList.add('fa-eye');
+            }
+        });
+    });
 }
 
 function openAdminPanel() {
@@ -298,7 +315,6 @@ function resetSystemData() {
     alert("Admin reset not available in cloud mode via this button for safety.");
 }
 
-// --- NEW FUNCTION: FETCH USERS FROM CLOUD ---
 async function renderAdminUserList() {
     const listSection = document.getElementById('adminListSection');
     const container = document.getElementById('adminListContainer');
@@ -309,13 +325,11 @@ async function renderAdminUserList() {
     container.innerHTML = '<div style="padding:10px; text-align:center;">Loading users...</div>';
 
     try {
-        // CALL THE NEW API ENDPOINT
         const response = await fetch('/api/users?action=list');
         if (!response.ok) throw new Error("Failed to fetch user list");
         
         const users = await response.json();
         
-        // Update the count on the dashboard
         document.getElementById('adminTotalUsers').textContent = users.length;
         
         container.innerHTML = '';
@@ -327,8 +341,6 @@ async function renderAdminUserList() {
         users.forEach(user => {
             const item = document.createElement('div');
             item.className = 'admin-list-item';
-            
-            // Note: We haven't built the DELETE User API yet, so button is just visual for now
             const deleteBtn = (currentUser && user.id === currentUser.id) ? 
                 `<span style="color:#cbd5e0;">(You)</span>` : 
                 `<button class="btn-sm-danger" onclick="adminDeleteUser(${user.id})" title="Delete API not connected">Delete</button>`;
@@ -366,7 +378,6 @@ function adminDeleteUser(userId) {
 
 function adminDeleteShop(shopId) {
     if(!confirm("Delete this shop?")) return;
-    // Real implementation would be fetch('/api/shops?id=' + shopId, { method: 'DELETE' })
     alert("Delete feature requires API DELETE endpoint.");
 }
 
@@ -434,6 +445,7 @@ function executeRouting(providerId, reverse) {
         routingControl = null;
     }
     
+    // Hide markers to declutter map
     hideAllMarkersExcept([provider.id]);
 
     document.querySelectorAll('.modal').forEach(modal => modal.style.display = 'none');
@@ -449,28 +461,69 @@ function executeRouting(providerId, reverse) {
         routeWhileDragging: true, 
         lineOptions: { styles: [{color: '#667eea', opacity: 1, weight: 5}] },
         createMarker: function(i, wp, nWps) {
+            // --- CUSTOM MARKER LOGIC FOR ROUTE ---
+            let markerIcon;
+            let popupContent;
+            
+            // "Me" Marker (Blue Dot Style)
+            const meIcon = L.divIcon({ 
+                className: 'user-marker', 
+                html: '<i class="fas fa-dot-circle" style="color:#4285F4; font-size:24px; text-shadow:0 0 5px white;"></i><span style="position:absolute; top:-20px; left:-5px; background:white; padding:2px 5px; border-radius:4px; font-weight:bold; font-size:10px; border:1px solid #ccc;">Me</span>', 
+                iconSize: [24, 24] 
+            });
+
+            // "Shop" Marker (Standard)
+            const shopIcon = L.icon({
+                iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
+                iconSize: [25, 41],
+                iconAnchor: [12, 41]
+            });
+
+            // Logic: Decide icon based on route direction
+            // If Me->Shop (!reverse): i=0 is Me, i=1 is Shop
+            // If Shop->Me (reverse): i=0 is Shop, i=1 is Me (User Coords)
+            
+            if (!reverse) {
+                // ME -> SHOP
+                if (i === 0) { // Start (Me)
+                    markerIcon = meIcon;
+                    popupContent = "<b>I am Here</b>";
+                } else { // End (Shop)
+                    markerIcon = shopIcon;
+                    popupContent = createPopupContent(provider); // Show shop details
+                }
+            } else {
+                // SHOP -> ME
+                if (i === 0) { // Start (Shop)
+                    markerIcon = shopIcon;
+                    popupContent = createPopupContent(provider);
+                } else { // End (User)
+                    markerIcon = meIcon;
+                    // Keep the logic for manual coordinate entry
+                    popupContent = `
+                        <div class="dest-popup-container">
+                            <h4>Enter User Coordinates</h4>
+                            <div class="dest-popup-inputs">
+                                <input type="number" id="manualDestLat" step="any" value="${wp.latLng.lat.toFixed(6)}" placeholder="Latitude">
+                                <input type="number" id="manualDestLng" step="any" value="${wp.latLng.lng.toFixed(6)}" placeholder="Longitude">
+                                <button class="dest-popup-btn" onclick="updateRouteDestination()">Route to User</button>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+
             const marker = L.marker(wp.latLng, {
                 draggable: true,
-                icon: L.icon({
-                    iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
-                    iconSize: [25, 41],
-                    iconAnchor: [12, 41]
-                })
+                icon: markerIcon
             });
-            if (i === 1 && reverse) {
-                const popupContent = `
-                    <div class="dest-popup-container">
-                        <h4>Enter User Coordinates</h4>
-                        <div class="dest-popup-inputs">
-                            <input type="number" id="manualDestLat" step="any" value="${wp.latLng.lat.toFixed(6)}" placeholder="Latitude">
-                            <input type="number" id="manualDestLng" step="any" value="${wp.latLng.lng.toFixed(6)}" placeholder="Longitude">
-                            <button class="dest-popup-btn" onclick="updateRouteDestination()">Route to User</button>
-                        </div>
-                    </div>
-                `;
+
+            if (popupContent) {
                 marker.bindPopup(popupContent);
-                setTimeout(() => { marker.openPopup(); }, 500);
+                // Open appropriate popup automatically
+                if (reverse && i === 1) setTimeout(() => { marker.openPopup(); }, 500); 
             }
+            
             return marker;
         },
         showAlternatives: false,
@@ -946,15 +999,98 @@ function appendBotMessage(text) {
 }
 
 function processChatCommand(cmd) {
-    if (cmd.includes('how to register') || cmd.includes('sign up')) {
-        return "To register: Click the 'Register' button on the top right. Fill in your username, password, and security question.";
+    // --- 1. REGISTRATION & LOGIN ---
+    if (cmd.includes('register') || cmd.includes('sign up') || cmd.includes('create account')) {
+        return "To register: Click 'Register' (top-right). Fill in Username, Password, and select a Security Question. Choose 'Service Provider' if you own a shop, or 'Regular User' to find services.";
+    }
+    if (cmd.includes('login') || cmd.includes('sign in')) {
+        return "To Login: Click 'Login' (top-right), enter your username/password. If successful, you'll see your name in the header.";
+    }
+    if (cmd.includes('forget') || cmd.includes('recover') || cmd.includes('reset password')) {
+        return "Forgot Password? In the Login window, click the 'Forgot Password?' link. Enter your username and answer your Security Question to retrieve your password.";
+    }
+    if (cmd.includes('role') || cmd.includes('provider') || cmd.includes('user account')) {
+        return "Roles: 'Regular User' can search shops, view details, and write reviews. 'Service Provider' can add their own shop to the map and edit its details.";
+    }
+
+    // --- 2. ADD & EDIT SHOPS ---
+    if (cmd.includes('add shop') || cmd.includes('add service') || cmd.includes('create shop')) {
+        return "To Add a Shop: 1) Login as a 'Service Provider'. 2) Click 'Add Shop' (top header). 3) Fill details (Name, Type, Phone). 4) Use 'Pick on Map' to set location. 5) Click Save.";
+    }
+    if (cmd.includes('edit shop') || cmd.includes('modify') || cmd.includes('update shop')) {
+        return "To Edit: Click your shop on the map -> 'View Details'. If you are the owner, you will see a 'Modify Shop' button at the bottom. Click it to update details.";
+    }
+    if (cmd.includes('delete shop') || cmd.includes('remove shop')) {
+        return "To Delete: Open your shop details. If you are the owner, a red 'Delete' button appears at the bottom. Click it to remove the shop permanently.";
+    }
+
+    // --- 3. SEARCH & FILTERS ---
+    if (cmd.includes('search') || cmd.includes('find')) {
+        return "Search Bar: Type a shop name (e.g., 'Ali Auto') or service (e.g., 'plumber') in the top bar and press Enter. The map will highlight matches.";
+    }
+    if (cmd.includes('filter') || cmd.includes('sort')) {
+        return "Filters (Left Sidebar): Select 'Service Type' (Electrician, Plumber, etc.) or 'Rating' (e.g., 4+ Stars). Adjust 'Search Radius' slider to find shops nearby. Click 'Apply Filters'.";
+    }
+    if (cmd.includes('radius') || cmd.includes('range')) {
+        return "Search Radius: Drag the slider on the left sidebar (0.5km to 5km). It draws a blue circle around your location to show which shops are included.";
+    }
+
+    // --- 4. ROUTING & MAP FEATURES ---
+    if (cmd.includes('route') || cmd.includes('direction') || cmd.includes('navigate')) {
+        return "Routing: Click a shop -> 'View Details'. Use 'Route (Me -> Shop)' to draw a path from You to the Shop. Use 'Route (Shop -> Me)' if the provider is coming to you.";
+    }
+    if (cmd.includes('me - shop') || cmd.includes('me to shop')) {
+        return "Me -> Shop: Shows a path starting from your current location (blue 'Me' dot) ending at the Shop. Useful when you are visiting them.";
+    }
+    if (cmd.includes('shop - me') || cmd.includes('shop to me')) {
+        return "Shop -> Me: Starts at the Shop and ends at a destination you choose. Useful for delivery or home service. You can edit the destination coordinates in the popup.";
+    }
+    if (cmd.includes('narrator') || cmd.includes('voice')) {
+        return "Voice Navigation: When a route is active, click the Speaker icon (top-right map controls) to hear turn-by-turn instructions.";
+    }
+    if (cmd.includes('location') || cmd.includes('where am i')) {
+        return "Locate Me: Click the 'Arrow' icon in the map controls (top-right). It zooms to your current GPS position.";
+    }
+
+    // --- 5. REVIEWS & RATINGS ---
+    if (cmd.includes('review') || cmd.includes('rating') || cmd.includes('star')) {
+        return "Reviews: Open a shop's details. Scroll down to see 'Write a Review'. Click stars (1-5) and write a comment. (Must be logged in as a Regular User).";
+    }
+    if (cmd.includes('best shop') || cmd.includes('top rated')) {
+        return "Find Top Shops: In the left sidebar, set the 'Rating' filter to '5 Stars' or '4+ Stars' and click Apply. Only highly-rated shops will appear.";
+    }
+
+    // --- 6. GENERAL SERVICES ---
+    if (cmd.includes('plumber')) {
+        document.getElementById('serviceType').value = 'plumber';
+        applyFilters();
+        return "Plumbers fix pipes, water leaks, and taps. I've filtered the map to show Plumbers.";
+    }
+    if (cmd.includes('electrician')) {
+        document.getElementById('serviceType').value = 'electrician';
+        applyFilters();
+        return "Electricians handle wiring, lights, and fans. Map is now showing Electricians.";
     }
     if (cmd.includes('mechanic')) {
         document.getElementById('serviceType').value = 'mechanic';
         applyFilters();
-        return "I've filtered the map to show Mechanics. Zooming in...";
+        return "Mechanics repair cars and bikes. Highlighting Mechanics on the map now.";
     }
-    return "I can help you find shops, explain how to register, or filter the map. Try asking 'How do I add a shop?' or 'Find me a mechanic'.";
+    if (cmd.includes('car wash') || cmd.includes('cleaning')) {
+        document.getElementById('serviceType').value = 'carwash';
+        applyFilters();
+        return "Showing Car/Bike Wash stations.";
+    }
+
+    // --- 7. GENERAL BENEFITS & PURPOSE ---
+    if (cmd.includes('benefit') || cmd.includes('purpose') || cmd.includes('why use')) {
+        return "Benefits: 1) Find nearest help quickly. 2) See real user ratings to avoid bad service. 3) Get direct routes. 4) Shop owners get more customers online.";
+    }
+    if (cmd.includes('help') || cmd.includes('support')) {
+        return "I can explain how to Register, Add Shops, Filter results, or use Navigation. What do you need help with?";
+    }
+
+    return "I can help with Registration, Adding Shops, Routing, Filters, or finding specific services (Plumber, Mechanic). Try asking 'How do I add a shop?' or 'Show me electricians'.";
 }
 
 // Global Exports

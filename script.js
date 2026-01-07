@@ -392,10 +392,6 @@ function setRouteProfile(profile) {
     // Recalculate route if active
     if (routingControl) {
         const waypoints = routingControl.getWaypoints();
-        // Since Leaflet Routing Machine free OSRM doesn't support modes perfectly,
-        // We simulate it by changing speed assumptions in the summary/narrator.
-        // For real profile switching, we'd need a paid Mapbox key.
-        // But we will restart routing to refresh the UI at least.
         routingControl.setWaypoints(waypoints);
     }
 }
@@ -473,7 +469,7 @@ function executeRouting(providerId, reverse) {
     // Add Mode Switcher Controls to Map if not exists
     if (!document.getElementById('routeModeControls')) {
         const modeDiv = L.Control.extend({
-            options: { position: 'topright' },
+            options: { position: 'topright' }, // Keep topright
             onAdd: function(map) {
                 const div = L.DomUtil.create('div', 'route-mode-controls');
                 div.id = 'routeModeControls';
@@ -482,6 +478,11 @@ function executeRouting(providerId, reverse) {
                 div.style.borderRadius = '5px';
                 div.style.boxShadow = '0 2px 6px rgba(0,0,0,0.3)';
                 div.style.marginBottom = '10px';
+                
+                // --- FIXED OVERLAP HERE ---
+                div.style.marginRight = '60px'; // Push buttons to the left of Reset Button
+                div.style.marginTop = '10px';
+                
                 div.innerHTML = `
                     <button id="mode-walking" class="route-mode-btn" onclick="setRouteProfile('walking')" title="Walking"><i class="fas fa-walking"></i></button>
                     <button id="mode-cycling" class="route-mode-btn" onclick="setRouteProfile('cycling')" title="Cycling"><i class="fas fa-bicycle"></i></button>
@@ -503,13 +504,13 @@ function executeRouting(providerId, reverse) {
     const p1 = reverse ? L.latLng(userLocation.lat, userLocation.lng) : L.latLng(userLocation.lat, userLocation.lng);
     const p2 = reverse ? L.latLng(provider.lat, provider.lng) : L.latLng(provider.lat, provider.lng);
 
-    // OSRM Profile Selection (Standard OSRM usually defaults to driving, but logic can handle adjustments)
+    // OSRM Profile Selection
     routingControl = L.Routing.control({
         waypoints: [p1, p2],
         routeWhileDragging: true, 
         router: L.Routing.osrmv1({
             serviceUrl: 'https://router.project-osrm.org/route/v1',
-            profile: 'driving' // OSRM Public API main profile.
+            profile: 'driving' 
         }),
         lineOptions: { styles: [{color: '#667eea', opacity: 1, weight: 5}] },
         createMarker: function(i, wp, nWps) {
@@ -528,10 +529,10 @@ function executeRouting(providerId, reverse) {
                 iconAnchor: [12, 41]
             });
 
-            if (!reverse) { // ME -> SHOP
+            if (!reverse) { 
                 if (i === 0) { markerIcon = meIcon; popupContent = "<b>I am Here</b>"; } 
                 else { markerIcon = shopIcon; popupContent = createPopupContent(provider); }
-            } else { // SHOP -> ME
+            } else { 
                 if (i === 0) { markerIcon = shopIcon; popupContent = createPopupContent(provider); } 
                 else { 
                     markerIcon = meIcon;
@@ -565,17 +566,13 @@ function executeRouting(providerId, reverse) {
         const summary = routes[0].summary;
         const totalDistKm = (summary.totalDistance / 1000).toFixed(1);
         
-        // --- CUSTOM TIME CALCULATION ---
-        // OSRM default time is for driving. We manually adjust time based on the selected button.
         let timeMins = Math.round(summary.totalTime / 60);
         let modeText = "Driving";
 
         if (currentRouteProfile === 'walking') {
-            // Avg walking speed ~5km/h. OSRM driving ~60km/h. Factor ~12x.
             timeMins = Math.round((summary.totalDistance / 1000) / 5 * 60); 
             modeText = "Walking";
         } else if (currentRouteProfile === 'cycling') {
-            // Avg cycling speed ~20km/h. Factor ~3x.
             timeMins = Math.round((summary.totalDistance / 1000) / 20 * 60);
             modeText = "Cycling";
         }
@@ -584,13 +581,11 @@ function executeRouting(providerId, reverse) {
         if(reverse) msg += " Enter user coordinates in the popup.";
         speakText(msg);
         
-        // Update the visual instruction box to show corrected time
         setTimeout(() => {
             const container = document.querySelector('.leaflet-routing-container');
             if(container) {
                 container.style.display = 'block';
                 container.classList.remove('hidden-instructions');
-                // Hack to inject custom time into header
                 const header = container.querySelector('h2') || container.querySelector('h3');
                 if(header) header.textContent = `${timeMins} min (${totalDistKm} km) - ${modeText}`;
             }
@@ -598,19 +593,16 @@ function executeRouting(providerId, reverse) {
     });
     
     // --- LIVE TRACKING FEATURE ---
-    // Update user position every 5 seconds and reroute
     if (!reverse) {
         liveTrackingId = setInterval(() => {
             navigator.geolocation.getCurrentPosition(pos => {
                 const newLat = pos.coords.latitude;
                 const newLng = pos.coords.longitude;
-                // Only update if moved significantly (> 20 meters) to save API calls
                 const currentLatLng = L.latLng(userLocation.lat, userLocation.lng);
                 const newLatLng = L.latLng(newLat, newLng);
                 
                 if (currentLatLng.distanceTo(newLatLng) > 20) {
                     userLocation = { lat: newLat, lng: newLng };
-                    // Update Start Point (Index 0)
                     const waypoints = routingControl.getWaypoints();
                     waypoints[0].latLng = newLatLng;
                     routingControl.setWaypoints(waypoints);

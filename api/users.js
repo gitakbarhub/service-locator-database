@@ -6,6 +6,20 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   
   if (req.method === 'GET') {
+    
+    // --- NEW MODIFICATION: Handle Admin List Request ---
+    if (req.query.action === 'list') {
+      try {
+        // Fetch all users (only safe info: id, username, role)
+        const result = await pool.query('SELECT id, username, role FROM users');
+        return res.status(200).json(result.rows);
+      } catch (err) {
+        console.error("List Error:", err);
+        return res.status(500).json({ error: "Failed to fetch list: " + err.message });
+      }
+    }
+    // ---------------------------------------------------
+
     // LOGIN LOGIC
     const { username, password } = req.query;
     try {
@@ -27,7 +41,7 @@ export default async function handler(req, res) {
   else if (req.method === 'POST') {
     // REGISTER LOGIC
     try {
-      // --- THE FIX: Handle both String and Object data ---
+      // Handle both String and Object data
       let bodyData = req.body;
       if (typeof req.body === 'string') {
         bodyData = JSON.parse(req.body);

@@ -1164,7 +1164,7 @@ function processChatCommand(cmd) {
     return "I am not sure about that. I can help with Registration, Adding Shops, Routing (Walk/Bike/Car), Filters, or finding specific services like Plumbers or Mechanics. Try asking 'How do I route?'";
 }
 
-// --- GEOSERVER HYBRID FUNCTION (FIXED) ---
+// --- GEOSERVER HYBRID FUNCTION (FINAL & FIXED) ---
 function toggleGeoServerLayer() {
     const btn = document.getElementById('togglePunjabBtn');
     const urlInput = document.getElementById('ngrokUrl');
@@ -1189,24 +1189,34 @@ function toggleGeoServerLayer() {
         btn.style.borderColor = "#d69e2e";
     } else {
         // Add the Layer
-        // UPDATED LAYER NAME: myprojectwebgis:punjab_boundary
-        punjabLayer = L.tileLayer.wms(`${baseUrl}/geoserver/myprojectwebgis/wms`, {
+        // UPDATED: Using Generic WMS endpoint for better compatibility
+        // UPDATED: Added tiled:true for performance
+        punjabLayer = L.tileLayer.wms(`${baseUrl}/geoserver/wms`, {
             layers: 'myprojectwebgis:punjab_boundary',
             format: 'image/png',
             transparent: true,
             version: '1.1.0',
+            tiled: true,
+            styles: '', // Force default style
             attribution: '© Local GeoServer (Punjab Govt)'
         });
 
         // Add to map
         punjabLayer.addTo(map);
+
+        // AUTO-ZOOM TO PUNJAB (Fix for "It's not showing")
+        // Coordinates for Center of Punjab, Pakistan
+        map.flyTo([31.1704, 72.7097], 7, {
+            animate: true,
+            duration: 1.5
+        });
         
         // Update Button UI
         btn.textContent = "Hide Punjab Layer";
         btn.style.background = "#d69e2e";
         btn.style.color = "white";
 
-        alert("Attempting to load layer 'myprojectwebgis:punjab_boundary'...");
+        alert("Loading Punjab Layer... \nI am zooming you out to Punjab so you can see it!");
     }
 }
 

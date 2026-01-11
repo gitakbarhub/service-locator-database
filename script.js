@@ -186,11 +186,16 @@ function updateUIForUser() {
     document.getElementById('loggedOutView').style.display = 'none';
     document.getElementById('loggedInView').style.display = 'flex';
     document.getElementById('welcomeUser').textContent = `Hi, ${currentUser.username}`;
+    
+    // CHANGED: Show buttons for both Desktop and Mobile based on role
     if (currentUser.role === 'admin' || currentUser.role === 'provider') {
         document.getElementById('addProviderBtn').style.display = 'inline-block';
+        document.getElementById('addProviderBtnMobile').style.display = 'inline-block'; // NEW Mobile Button
     } else {
         document.getElementById('addProviderBtn').style.display = 'none';
+        document.getElementById('addProviderBtnMobile').style.display = 'none';
     }
+
     if (currentUser.role === 'admin') {
         document.getElementById('adminPanelBtn').style.display = 'inline-block';
     } else {
@@ -202,6 +207,7 @@ function updateUIForGuest() {
     document.getElementById('loggedOutView').style.display = 'block';
     document.getElementById('loggedInView').style.display = 'none';
     document.getElementById('addProviderBtn').style.display = 'none';
+    document.getElementById('addProviderBtnMobile').style.display = 'none'; // NEW
     document.getElementById('adminPanelBtn').style.display = 'none';
 }
 
@@ -250,6 +256,9 @@ function initializeEventListeners() {
     }
 
     document.getElementById('addProviderBtn').addEventListener('click', () => openAddProviderModal());
+    // CHANGED: Wire up the mobile button
+    document.getElementById('addProviderBtnMobile').addEventListener('click', () => openAddProviderModal()); 
+    
     document.getElementById('cancelAdd').addEventListener('click', closeAddProviderModal);
     document.getElementById('providerForm').addEventListener('submit', handleProviderSubmit);
     document.getElementById('pickLocationBtn').addEventListener('click', toggleLocationPicker);

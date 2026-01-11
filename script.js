@@ -4,50 +4,46 @@ let providers = [];
 let currentUser = null;
 let currentDetailId = null;
 
-// Map & Layer Variables
+// Map Variables
 let osmLayer, satelliteLayer;
 let userLocation = null;
 let routingControl = null;
 let markers = [];
-let tempMarker = null; // For picking location
+let tempMarker = null; 
 let isPickingLocation = false;
 let punjabLayer = null;
 
-// Config
 const DEFAULT_CENTER = { lat: 31.4880, lng: 74.3430 };
 const CURRENT_USER_KEY = 'serviceCurrentUser';
 
 document.addEventListener('DOMContentLoaded', function() {
     initializeMap();
     initializeEventListeners();
-    initializeMobileSidebar(); // New function for sliding window
+    initializeMobileSidebar(); // Initialize sliding logic
     loadData(); 
     checkAuthSession(); 
     initChatbot(); 
     initDraggable(); 
 });
 
-// --- MOBILE SIDEBAR LOGIC ---
+// --- MOBILE SIDEBAR SLIDING LOGIC ---
 function initializeMobileSidebar() {
-    const sidebar = document.querySelector('.sidebar');
-    // Default state: Minimized (peeking)
-    sidebar.classList.add('minimized');
-
-    // Create a click zone at the top of the sidebar
-    const handleZone = document.createElement('div');
-    handleZone.style.position = 'absolute';
-    handleZone.style.top = '0';
-    handleZone.style.left = '0';
-    handleZone.style.width = '100%';
-    handleZone.style.height = '40px';
-    handleZone.style.zIndex = '2001';
-    handleZone.style.cursor = 'pointer';
+    const sidebar = document.getElementById('sidebar');
+    const handle = document.getElementById('slideHandle');
     
-    sidebar.appendChild(handleZone);
+    if(handle && sidebar) {
+        // Toggle 'expanded' class when handle is clicked
+        handle.addEventListener('click', () => {
+            sidebar.classList.toggle('expanded');
+        });
 
-    handleZone.addEventListener('click', () => {
-        sidebar.classList.toggle('minimized');
-    });
+        // Optional: Close sidebar when clicking on map (better UX)
+        if(map) {
+            map.on('click', () => {
+                sidebar.classList.remove('expanded');
+            });
+        }
+    }
 }
 
 // --- DATA & AUTH ---
@@ -72,7 +68,7 @@ function checkAuthSession() {
     }
 }
 
-// ** CRITICAL: AUTH UI LOGIC **
+// ** AUTH UI LOGIC (Fulfils specific requirements) **
 function updateUIForUser() {
     document.getElementById('loggedOutView').style.display = 'none';
     document.getElementById('loggedInView').style.display = 'flex';
@@ -82,17 +78,19 @@ function updateUIForUser() {
     const adminBtn = document.getElementById('adminPanelBtn');
     const addShopBtn = document.getElementById('addProviderBtn');
 
-    // Reset buttons
+    // Default: Hide special buttons
     adminBtn.style.display = 'none';
     addShopBtn.style.display = 'none';
 
     if (role === 'admin') {
-        adminBtn.style.display = 'block';
-        addShopBtn.style.display = 'block'; // Admin can add shop
+        // Admin: Admin Panel + Add Shop + Logout
+        adminBtn.style.display = 'inline-block';
+        addShopBtn.style.display = 'inline-block';
     } else if (role === 'provider') {
-        addShopBtn.style.display = 'block'; // Provider can add shop
-    } 
-    // User role gets neither, just Logout (which is always there in loggedInView)
+        // Provider: Add Shop + Logout
+        addShopBtn.style.display = 'inline-block';
+    }
+    // User: Logout only (Buttons remain hidden)
 }
 
 function updateUIForGuest() {
@@ -110,8 +108,8 @@ function logout() {
     }
 }
 
+// --- STANDARD FUNCTIONS (Login, Reg, Map) ---
 async function login(username, password) {
-    // Simulated Login for Demo (Replace with your API fetch)
     try {
         const response = await fetch(`/api/users?username=${username}&password=${password}`);
         const data = await response.json(); 
@@ -139,7 +137,6 @@ async function register(username, password, role, question, answer) {
     } catch (e) { alert("Network Error"); }
 }
 
-// --- MAP FUNCTIONS ---
 function initializeMap() {
     map = L.map('map', { zoomControl: false }).setView([DEFAULT_CENTER.lat, DEFAULT_CENTER.lng], 16);
     L.control.zoom({ position: 'topleft' }).addTo(map);
@@ -162,14 +159,15 @@ function initializeMap() {
     });
 }
 
-// --- UI INTERACTIONS ---
 function initializeEventListeners() {
+    // Navigation
     document.getElementById('loginBtnNav').onclick = () => document.getElementById('loginModal').style.display = 'block';
     document.getElementById('registerBtnNav').onclick = () => document.getElementById('registerModal').style.display = 'block';
     document.getElementById('logoutBtn').onclick = logout;
     document.getElementById('addProviderBtn').onclick = () => openAddProviderModal();
     document.getElementById('adminPanelBtn').onclick = () => document.getElementById('adminModal').style.display = 'block';
     
+    // Filters & Map
     document.getElementById('applyFilters').onclick = applyFilters;
     document.getElementById('searchBtn').onclick = performSearch;
     document.getElementById('togglePunjabBtn').onclick = toggleGeoServerLayer;
@@ -178,7 +176,7 @@ function initializeEventListeners() {
     document.getElementById('loginForm').onsubmit = (e) => { e.preventDefault(); login(document.getElementById('loginUsername').value, document.getElementById('loginPassword').value); };
     document.getElementById('registerForm').onsubmit = (e) => { e.preventDefault(); register(document.getElementById('regUsername').value, document.getElementById('regPassword').value, document.getElementById('regRole').value, document.getElementById('regSecurityQuestion').value, document.getElementById('regSecurityAnswer').value); };
     
-    // Add Shop Logic
+    // Add Shop
     document.getElementById('pickLocationBtn').onclick = () => {
         isPickingLocation = true;
         document.getElementById('addProviderModal').style.display = 'none';
@@ -203,17 +201,15 @@ function initializeEventListeners() {
         applyFilters();
     };
 
-    // Close Modals
+    // Modals
     document.querySelectorAll('.close').forEach(btn => btn.onclick = function() { this.closest('.modal').style.display = 'none'; });
 }
 
-// --- CORE LOGIC (Filters, Map Markers) ---
 function applyFilters() {
     const type = document.getElementById('serviceType').value;
     const minRating = parseFloat(document.getElementById('ratingFilter').value);
     const radius = parseFloat(document.getElementById('searchRadius').value);
     
-    // Mock filtering logic
     const filtered = providers.filter(p => {
         return (type === 'all' || p.service === type) && (p.rating >= minRating);
     });
@@ -228,12 +224,12 @@ function renderList(list) {
     list.forEach(p => {
         const div = document.createElement('div');
         div.className = 'provider-card';
-        div.innerHTML = `<div class="provider-name">${p.name}</div><div class="provider-service">${p.service}</div><div class="stars">★ ${p.rating}</div>`;
+        div.innerHTML = `<div class="provider-name">${p.name}</div><div class="stars">★ ${p.rating}</div>`;
         div.onclick = () => {
             showProviderDetails(p.id);
             map.setView([p.lat, p.lng], 16);
-            // On mobile, minimize sidebar when clicked
-            document.querySelector('.sidebar').classList.add('minimized');
+            // On mobile, minimize sidebar when shop clicked
+            document.getElementById('sidebar').classList.remove('expanded');
         };
         container.appendChild(div);
     });
@@ -260,7 +256,6 @@ function showProviderDetails(id) {
     document.getElementById('detailPhone').textContent = p.phone;
     document.getElementById('detailRating').textContent = "★".repeat(Math.floor(p.rating));
     
-    // Owner Actions visibility
     const ownerDiv = document.getElementById('ownerActions');
     if (currentUser && (currentUser.role === 'admin' || currentUser.id == p.ownerId)) {
         ownerDiv.style.display = 'flex';
@@ -291,7 +286,7 @@ function routeToShop(id, reverse) {
         waypoints: waypoints,
         routeWhileDragging: true,
         createMarker: function(i, wp) {
-            return L.marker(wp.latLng, { draggable: (reverse && i===1) }); // Allow dragging destination in reverse
+            return L.marker(wp.latLng, { draggable: (reverse && i===1) });
         }
     }).addTo(map);
     
@@ -303,7 +298,8 @@ function locateUser() {
     if (!navigator.geolocation) { alert("Geo not supported"); return; }
     navigator.geolocation.getCurrentPosition(pos => {
         userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        L.marker([userLocation.lat, userLocation.lng], {icon: L.divIcon({className: 'user-marker', html: '<div style="background:blue;width:10px;height:10px;border-radius:50%;"></div>'})}).addTo(map);
+        if(window.userMarker) map.removeLayer(window.userMarker);
+        window.userMarker = L.marker([userLocation.lat, userLocation.lng], {icon: L.divIcon({className: 'user-marker', html: '<div style="background:blue;width:10px;height:10px;border-radius:50%;"></div>'})}).addTo(map);
         map.setView([userLocation.lat, userLocation.lng], 16);
     });
 }
@@ -318,14 +314,12 @@ function performSearch() {
 }
 
 function toggleGeoServerLayer() {
-    // GeoServer logic (same as previous)
     const url = document.getElementById('ngrokUrl').value;
-    if(!url) return alert("Enter URL");
+    if(!url) return alert("Enter Ngrok URL");
     if(punjabLayer) { map.removeLayer(punjabLayer); punjabLayer=null; return; }
     punjabLayer = L.tileLayer.wms(`${url}/geoserver/wms`, { layers: 'myprojectwebgis:punjab_boundary', format: 'image/png', transparent: true }).addTo(map);
 }
 
 // Helpers
-const convertBase64 = (file) => new Promise((r, j) => { const reader = new FileReader(); reader.readAsDataURL(file); reader.onload = () => r(reader.result); reader.onerror = e => j(e); });
-function initChatbot() { /* Standard Chatbot logic from previous step */ }
-function initDraggable() { /* Standard Drag logic */ }
+function initChatbot() { /* Chatbot Logic */ }
+function initDraggable() { /* Drag Logic */ }

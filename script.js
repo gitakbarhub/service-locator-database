@@ -16,7 +16,8 @@ let liveTrackingId = null;
 let currentRouteProfile = 'driving'; 
 
 // --- API & GEOSERVER VARIABLES ---
-let punjabLayer = null; 
+let punjabLayer = null;
+let newLayer = null; 
 const DEFAULT_CENTER = { lat: 31.4880, lng: 74.3430 };
 const CURRENT_USER_KEY = 'serviceCurrentUser';
 let currentUser = null; 
@@ -220,16 +221,6 @@ function initializeMap() {
     osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors', maxZoom: 19 });
     satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: '© Esri, Maxar', maxZoom: 19 });
     osmLayer.addTo(map);
-    
-    // --- NEW: LAYER CONTROL (Prepare for multiple layers) ---
-    const baseMaps = {
-        "Street Map": osmLayer,
-        "Satellite": satelliteLayer
-    };
-    // Overlay maps can be empty initially and added later dynamically
-    const overlayMaps = {}; 
-    L.control.layers(baseMaps, overlayMaps).addTo(map);
-
     const initialRadius = parseFloat(document.getElementById('searchRadius').value);
     updateMapRadius(initialRadius);
     map.on('click', function(e) { if (isPickingLocation) confirmLocationPick(e.latlng); });
@@ -242,15 +233,20 @@ function initializeEventListeners() {
     document.getElementById('searchRadius').addEventListener('change', applyFilters);
     document.getElementById('locateMe').addEventListener('click', locateUser);
     document.getElementById('resetMapBtn').addEventListener('click', resetMapView);
-    
-    // Map style buttons (kept for UI compatibility, though Layer Control handles this now too)
     document.getElementById('setOsmMap').addEventListener('click', () => setBasemap('osm'));
     document.getElementById('setSatelliteMap').addEventListener('click', () => setBasemap('satellite'));
-    
     document.getElementById('toggleNarratorBtn').addEventListener('click', toggleNarrator);
     document.getElementById('toggleRouteInfoBtn').addEventListener('click', toggleRouteWindow);
 
-    document.getElementById('togglePunjabBtn').addEventListener('click', toggleGeoServerLayer);
+    document.getElementById('togglePunjabBtn').addEventListener('click', togglePunjabLayer);
+    
+    // --- THIS IS THE NEW BUTTON LISTENER ---
+    const newLayerBtn = document.getElementById('toggleNewLayerBtn');
+    if (newLayerBtn) {
+        newLayerBtn.addEventListener('click', toggleNewLayer);
+    } else {
+        console.error("Button 'toggleNewLayerBtn' not found in HTML!");
+    }
 
     const radiusSlider = document.getElementById('searchRadius');
     if (radiusSlider) {
@@ -489,7 +485,7 @@ function executeRouting(providerId, reverse) {
         routingControl = null;
     }
     
-    // --- FIX 1: STOP OLD INTERVAL TRACKING ---
+    // --- FIX: STOP OLD INTERVAL TRACKING ---
     if (liveTrackingId) {
         navigator.geolocation.clearWatch(liveTrackingId); 
         liveTrackingId = null;
@@ -643,9 +639,8 @@ function executeRouting(providerId, reverse) {
         }, 500);
     });
     
-    // --- FIX 2: CORRECT LIVE TRACKING (watchPosition) ---
+    // --- FIX: LIVE TRACKING (watchPosition) ---
     if (!reverse) {
-        // Use watchPosition instead of setInterval to avoid browser violations and battery drain
         liveTrackingId = navigator.geolocation.watchPosition(
             function(pos) {
                 const newLat = pos.coords.latitude;
@@ -653,16 +648,15 @@ function executeRouting(providerId, reverse) {
                 const currentLatLng = L.latLng(userLocation.lat, userLocation.lng);
                 const newLatLng = L.latLng(newLat, newLng);
                 
-                // Only update if moved more than 20 meters
                 if (currentLatLng.distanceTo(newLatLng) > 20) {
                     userLocation = { lat: newLat, lng: newLng };
                     const waypoints = routingControl.getWaypoints();
-                    waypoints[0].latLng = newLatLng; // Update Start Point
+                    waypoints[0].latLng = newLatLng; 
                     routingControl.setWaypoints(waypoints);
                     console.log("Route updated live.");
                 }
             }, 
-            function(err) { console.warn("Live tracking warning (GPS might be weak):", err.message); },
+            function(err) { console.warn("Live tracking warning:", err.message); }, 
             { enableHighAccuracy: true, maximumAge: 10000, timeout: 10000 }
         );
     }
@@ -951,11 +945,12 @@ function resetMapView() {
         map.removeLayer(window.userMarker);
         window.userMarker = null; 
     }
-    // --- FIX 1 (Cleanup): Stop WatchPosition on Reset ---
+    
+    // --- FIX: Stop WatchPosition on Reset ---
     if (liveTrackingId) {
         navigator.geolocation.clearWatch(liveTrackingId);
         liveTrackingId = null;
-    }
+    } 
     
     const modeDiv = document.getElementById('routeModeControls');
     if (modeDiv) modeDiv.remove();
@@ -1085,7 +1080,7 @@ function updateStarVisuals(rating) {
     });
 }
 
-// --- 3. INTELLIGENT CHATBOT (10x Better + API Option) ---
+// --- INTELLIGENT CHATBOT ---
 
 function initChatbot() {
     const toggleBtn = document.getElementById('chatbotToggle');
@@ -1196,7 +1191,7 @@ function processChatCommand(cmd) {
     return "I didn't quite catch that. Try saying 'Find a mechanic' or 'How to register'.";
 }
 
-// --- API INTEGRATION (Optional) ---
+// --- OPTIONAL: REAL AI API INTEGRATION ---
 const AI_API_KEY = ""; 
 
 async function askAI_API(prompt) {
@@ -1219,7 +1214,9 @@ async function askAI_API(prompt) {
     }
 }
 
-function toggleGeoServerLayer() {
+// --- GEOSERVER LAYERS LOGIC ---
+
+function togglePunjabLayer() {
     const btn = document.getElementById('togglePunjabBtn');
     const urlInput = document.getElementById('ngrokUrl');
     let baseUrl = urlInput.value.trim();
@@ -1239,28 +1236,64 @@ function toggleGeoServerLayer() {
         btn.style.color = "";
         btn.style.borderColor = "#d69e2e";
     } else {
-        // --- FIX 3: WMS CONFIGURATION (Tiled: False) ---
         punjabLayer = L.tileLayer.wms(`${baseUrl}/geoserver/wms`, {
-            layers: 'myprojectwebgis:punjab_boundary',
+            layers: 'myprojectwebgis:punjab_boundary', // This must match your GeoServer Layer Name
             format: 'image/png',
             transparent: true,
             version: '1.1.0',
-            tiled: false, // Prevents "Refused Stream" error from Ngrok
+            tiled: false, // Fixes the "Refused Stream" error
             styles: '',
-            attribution: '© Local GeoServer (Punjab Govt)'
+            attribution: '© Local GeoServer (Punjab)'
         });
-        
         punjabLayer.addTo(map);
         map.flyTo([31.1704, 72.7097], 7, { animate: true, duration: 1.5 });
         
         btn.textContent = "Hide Punjab Layer";
         btn.style.background = "#d69e2e";
         btn.style.color = "white";
+    }
+}
+
+// --- NEW FUNCTION: Toggle Second Layer ---
+function toggleNewLayer() {
+    const btn = document.getElementById('toggleNewLayerBtn');
+    const urlInput = document.getElementById('ngrokUrl');
+    let baseUrl = urlInput.value.trim();
+
+    if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
+
+    if (!baseUrl) {
+        alert("⚠️ Please paste your Ngrok URL first!");
+        return;
+    }
+
+    if (newLayer && map.hasLayer(newLayer)) {
+        map.removeLayer(newLayer);
+        newLayer = null;
+        btn.textContent = "Load My Project";
+        btn.style.background = ""; 
+        btn.style.color = "";
+    } else {
+        // --- IMPORTANT: CHANGE 'myprojectwebgis:your_new_layer_name' BELOW ---
+        const layerName = 'myprojectwebgis:shops'; // <--- IF IT DOESN'T WORK, CHECK THIS NAME
+        alert(`Attempting to load layer: ${layerName}\nMake sure this name matches GeoServer exactly!`);
+
+        newLayer = L.tileLayer.wms(`${baseUrl}/geoserver/wms`, {
+            layers: layerName, 
+            format: 'image/png',
+            transparent: true,
+            version: '1.1.0',
+            tiled: false, 
+            styles: '',
+            attribution: '© Local GeoServer (New Layer)'
+        });
+        newLayer.addTo(map);
+        // You can change this zoom location if you want to focus somewhere else
+        map.flyTo([31.4880, 74.3430], 13, { animate: true, duration: 1.5 });
         
-        // Also add it to the new Layer Control we created
-        // Note: Dynamically updating controls in Leaflet is tricky, 
-        // so we stick to the manual toggle button you already have for simplicity.
-        alert("Loading Punjab Layer... \nI am zooming you out to Punjab so you can see it!");
+        btn.textContent = "Hide My Project";
+        btn.style.background = "#2b6cb0";
+        btn.style.color = "white";
     }
 }
 

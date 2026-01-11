@@ -12,23 +12,20 @@ let isPickingLocation = false;
 let tempMarker = null;
 let routingControl = null;
 let narratorEnabled = false;
-let liveTrackingId = null; // For tracking user movement
-let currentRouteProfile = 'driving'; // Default: driving, walking, cycling
+let liveTrackingId = null; 
+let currentRouteProfile = 'driving'; 
 
-// --- GEOSERVER VARIABLE ---
-let punjabLayer = null; // Variable to hold the GeoServer layer
-
-// --- CONFIGURATION ---
+// --- API & GEOSERVER VARIABLES ---
+let punjabLayer = null; 
 const DEFAULT_CENTER = { lat: 31.4880, lng: 74.3430 };
 const CURRENT_USER_KEY = 'serviceCurrentUser';
-
-// --- AUTH STATE ---
 let currentUser = null; 
 
 document.addEventListener('DOMContentLoaded', function() {
     initializeMap();
     initializeEventListeners();
-    loadData(); // Fetches from Cloud
+    initializeMobileSidebar(); // New function for mobile UI
+    loadData(); 
     checkAuthSession(); 
     initChatbot(); 
     initDraggable(); 
@@ -47,10 +44,6 @@ async function loadData() {
     } catch (error) {
         console.error("Error loading cloud data:", error);
     }
-}
-
-function saveData() {
-    console.log("Data is now managed by the database.");
 }
 
 async function login(username, password) {
@@ -101,6 +94,19 @@ async function register(username, password, role, question, answer) {
 }
 
 // --- INTERFACE LOGIC ---
+
+function initializeMobileSidebar() {
+    // Inject the handle HTML dynamically
+    const sidebar = document.querySelector('.sidebar');
+    const handle = document.createElement('div');
+    handle.className = 'mobile-sidebar-handle';
+    sidebar.insertBefore(handle, sidebar.firstChild);
+
+    // Toggle logic
+    handle.addEventListener('click', () => {
+        sidebar.classList.toggle('expanded');
+    });
+}
 
 function initDraggable() {
     const headers = document.querySelectorAll('.draggable-header');
@@ -165,7 +171,7 @@ function logout() {
 function updateUIForUser() {
     document.getElementById('loggedOutView').style.display = 'none';
     document.getElementById('loggedInView').style.display = 'flex';
-    document.getElementById('welcomeUser').textContent = `Hi, ${currentUser.username} (${currentUser.role})`;
+    document.getElementById('welcomeUser').textContent = `Hi, ${currentUser.username}`;
     if (currentUser.role === 'admin' || currentUser.role === 'provider') {
         document.getElementById('addProviderBtn').style.display = 'inline-block';
     } else {
@@ -219,7 +225,6 @@ function initializeEventListeners() {
     document.getElementById('toggleNarratorBtn').addEventListener('click', toggleNarrator);
     document.getElementById('toggleRouteInfoBtn').addEventListener('click', toggleRouteWindow);
 
-    // --- NEW GEOSERVER LISTENER ---
     document.getElementById('togglePunjabBtn').addEventListener('click', toggleGeoServerLayer);
 
     const radiusSlider = document.getElementById('searchRadius');
@@ -286,7 +291,6 @@ function initializeEventListeners() {
         });
     });
 
-    // --- PASSWORD TOGGLE LOGIC ---
     document.querySelectorAll('.toggle-password').forEach(icon => {
         icon.addEventListener('click', function() {
             const targetId = this.getAttribute('data-target');
@@ -388,14 +392,11 @@ function updateMapRadius(radiusKm) {
 
 // --- ROUTING SYSTEM ---
 
-// Mode Switching Logic
 function setRouteProfile(profile) {
     currentRouteProfile = profile;
-    // Update active button UI
     document.querySelectorAll('.route-mode-btn').forEach(btn => btn.classList.remove('active'));
     document.getElementById(`mode-${profile}`).classList.add('active');
     
-    // Recalculate route if active
     if (routingControl) {
         const waypoints = routingControl.getWaypoints();
         routingControl.setWaypoints(waypoints);
@@ -461,21 +462,26 @@ function executeRouting(providerId, reverse) {
         routingControl = null;
     }
     
-    // Clear any existing tracking interval
     if (liveTrackingId) clearInterval(liveTrackingId);
 
-    // Hide markers to declutter map
+    // FIX: Hide the duplicate "User Marker" blue dot so only the routing icons show
+    if (window.userMarker) {
+        map.removeLayer(window.userMarker);
+    }
     hideAllMarkersExcept([provider.id]);
+
+    // Collapse the sidebar on mobile to show full map for routing
+    const sidebar = document.querySelector('.sidebar');
+    if (sidebar) sidebar.classList.remove('expanded');
 
     document.querySelectorAll('.modal').forEach(modal => modal.style.display = 'none');
     document.getElementById('toggleNarratorBtn').style.display = 'block';
     document.getElementById('toggleRouteInfoBtn').style.display = 'block';
     document.getElementById('toggleRouteInfoBtn').classList.add('active');
 
-    // Add Mode Switcher Controls to Map if not exists
     if (!document.getElementById('routeModeControls')) {
         const modeDiv = L.Control.extend({
-            options: { position: 'topright' }, // Keep topright
+            options: { position: 'topright' }, 
             onAdd: function(map) {
                 const div = L.DomUtil.create('div', 'route-mode-controls');
                 div.id = 'routeModeControls';
@@ -483,7 +489,6 @@ function executeRouting(providerId, reverse) {
                 div.style.padding = '5px';
                 div.style.borderRadius = '5px';
                 div.style.boxShadow = '0 2px 6px rgba(0,0,0,0.3)';
-                // Removed inline margins to let CSS handle responsiveness
                 
                 div.innerHTML = `
                     <button id="mode-walking" class="route-mode-btn" onclick="setRouteProfile('walking')" title="Walking"><i class="fas fa-walking"></i></button>
@@ -499,14 +504,12 @@ function executeRouting(providerId, reverse) {
             }
         });
         map.addControl(new modeDiv());
-        // Make functions global for onclick
         window.setRouteProfile = setRouteProfile;
     }
 
     const p1 = reverse ? L.latLng(userLocation.lat, userLocation.lng) : L.latLng(userLocation.lat, userLocation.lng);
     const p2 = reverse ? L.latLng(provider.lat, provider.lng) : L.latLng(provider.lat, provider.lng);
 
-    // OSRM Profile Selection
     routingControl = L.Routing.control({
         waypoints: [p1, p2],
         routeWhileDragging: true, 
@@ -519,28 +522,52 @@ function executeRouting(providerId, reverse) {
             let markerIcon;
             let popupContent;
             
+            // --- FIX: Icons logic ---
+            // Explicitly distinct icons
             const meIcon = L.divIcon({ 
-                className: 'user-marker', 
-                html: '<i class="fas fa-dot-circle" style="color:#4285F4; font-size:24px; text-shadow:0 0 5px white;"></i><span style="position:absolute; top:-20px; left:-5px; background:white; padding:2px 5px; border-radius:4px; font-weight:bold; font-size:10px; border:1px solid #ccc;">Me</span>', 
-                iconSize: [24, 24] 
+                className: 'user-marker-routing', 
+                html: '<div style="background-color:#4285F4; width:20px; height:20px; border-radius:50%; border:2px solid white; box-shadow:0 0 5px rgba(0,0,0,0.5);"></div><span style="position:absolute; top:-20px; left:-10px; font-weight:bold; background:white; padding:1px 4px; border-radius:4px; font-size:11px;">Me</span>', 
+                iconSize: [20, 20],
+                iconAnchor: [10, 10]
             });
 
             const shopIcon = L.icon({
                 iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
                 iconSize: [25, 41],
-                iconAnchor: [12, 41]
+                iconAnchor: [12, 41],
+                popupAnchor: [1, -34]
             });
 
+            // --- FIX: Draggable Logic ---
+            let isDraggable = true;
+
             if (!reverse) { 
-                if (i === 0) { markerIcon = meIcon; popupContent = "<b>I am Here</b>"; } 
-                else { markerIcon = shopIcon; popupContent = createPopupContent(provider); }
+                // Me (Start) -> Shop (End)
+                // "the location icon fixed it not move able"
+                if (i === 0) { 
+                    markerIcon = meIcon; 
+                    popupContent = "<b>I am Here (Start)</b>"; 
+                    isDraggable = false; // Fixed Me
+                } 
+                else { 
+                    markerIcon = shopIcon; 
+                    popupContent = createPopupContent(provider); 
+                    isDraggable = false; // Fixed Shop
+                }
             } else { 
-                if (i === 0) { markerIcon = shopIcon; popupContent = createPopupContent(provider); } 
+                // Shop (Start) -> Me (End)
+                // "shop location it could fixed the other end is move able only"
+                if (i === 0) { 
+                    markerIcon = shopIcon; 
+                    popupContent = createPopupContent(provider); 
+                    isDraggable = false; // Fixed Shop
+                } 
                 else { 
                     markerIcon = meIcon;
+                    isDraggable = true; // Movable Me (Destination)
                     popupContent = `
                         <div class="dest-popup-container">
-                            <h4>Enter User Coordinates</h4>
+                            <h4>Adjust Drop-off Location</h4>
                             <div class="dest-popup-inputs">
                                 <input type="number" id="manualDestLat" step="any" value="${wp.latLng.lat.toFixed(6)}" placeholder="Latitude">
                                 <input type="number" id="manualDestLng" step="any" value="${wp.latLng.lng.toFixed(6)}" placeholder="Longitude">
@@ -551,7 +578,7 @@ function executeRouting(providerId, reverse) {
                 }
             }
 
-            const marker = L.marker(wp.latLng, { draggable: true, icon: markerIcon });
+            const marker = L.marker(wp.latLng, { draggable: isDraggable, icon: markerIcon });
             if (popupContent) {
                 marker.bindPopup(popupContent);
                 if (reverse && i === 1) setTimeout(() => { marker.openPopup(); }, 500); 
@@ -580,7 +607,7 @@ function executeRouting(providerId, reverse) {
         }
 
         let msg = `${modeText} route. Distance ${totalDistKm} km. Time approx ${timeMins} minutes.`;
-        if(reverse) msg += " Enter user coordinates in the popup.";
+        if(reverse) msg += " Drag the 'Me' icon to adjust destination.";
         speakText(msg);
         
         setTimeout(() => {
@@ -595,6 +622,7 @@ function executeRouting(providerId, reverse) {
     });
     
     // --- LIVE TRACKING FEATURE ---
+    // Only update if I am the start point (not reversed)
     if (!reverse) {
         liveTrackingId = setInterval(() => {
             navigator.geolocation.getCurrentPosition(pos => {
@@ -606,7 +634,7 @@ function executeRouting(providerId, reverse) {
                 if (currentLatLng.distanceTo(newLatLng) > 20) {
                     userLocation = { lat: newLat, lng: newLng };
                     const waypoints = routingControl.getWaypoints();
-                    waypoints[0].latLng = newLatLng;
+                    waypoints[0].latLng = newLatLng; // Update Start Point
                     routingControl.setWaypoints(waypoints);
                     console.log("Route updated live.");
                 }
@@ -615,7 +643,7 @@ function executeRouting(providerId, reverse) {
     }
 
     if(reverse) {
-        alert("Provider Mode: The route starts at your location.\n\nEnter the User's coordinates in the popup box on the Destination Marker.");
+        alert("Provider Mode: Route starts at SHOP. You can drag the USER icon (Destination) to change drop-off point.");
     }
 
     const bounds = L.latLngBounds([p1, p2]);
@@ -628,6 +656,7 @@ function updateRouteDestination() {
     if(isNaN(lat) || isNaN(lng)) { alert("Please enter valid Latitude and Longitude"); return; }
     if(routingControl) {
         const waypoints = routingControl.getWaypoints();
+        // Index 1 is the destination in reverse mode
         const newWaypoints = [ waypoints[0], L.Routing.waypoint(L.latLng(lat, lng)) ];
         routingControl.setWaypoints(newWaypoints);
         map.closePopup(); 
@@ -805,7 +834,6 @@ async function handleProviderSubmit(e) {
         image: imageBase64
     };
 
-    // --- UPLOAD TO CLOUD ---
     try {
         const response = await fetch('/api/shops', {
             method: 'POST',
@@ -815,7 +843,7 @@ async function handleProviderSubmit(e) {
         if (response.ok) {
             alert("Shop Saved to Cloud!");
             closeAddProviderModal();
-            loadData(); // Reload map to show new data
+            loadData(); 
         } else {
             alert("Error saving shop.");
         }
@@ -894,12 +922,18 @@ function resetMapView() {
     searchAnchor = { ...DEFAULT_CENTER };
     userLocation = null;
     if (routingControl) map.removeControl(routingControl);
-    if (window.userMarker) map.removeLayer(window.userMarker);
-    if (liveTrackingId) clearInterval(liveTrackingId); // Stop tracking on reset
+    if (window.userMarker) {
+        map.removeLayer(window.userMarker);
+        window.userMarker = null; // Clear it to prevent duplicates
+    }
+    if (liveTrackingId) clearInterval(liveTrackingId); 
     
-    // Remove mode buttons if they exist
     const modeDiv = document.getElementById('routeModeControls');
     if (modeDiv) modeDiv.remove();
+
+    // Reset Sidebar
+    const sidebar = document.querySelector('.sidebar');
+    if (sidebar) sidebar.classList.remove('expanded');
 
     map.setView([DEFAULT_CENTER.lat, DEFAULT_CENTER.lng], 16);
     document.getElementById('searchRadius').value = 1;
@@ -928,6 +962,11 @@ function showProviderOnMap(providerId) {
     if (provider) {
         map.setView([provider.lat, provider.lng], 16);
         markers.forEach(marker => { if (marker.providerId === providerId) marker.openPopup(); });
+        
+        // Mobile UX: If a shop is clicked in the list, collapse the list so map is visible
+        if (window.innerWidth <= 768) {
+            document.querySelector('.sidebar').classList.remove('expanded');
+        }
     }
 }
 
@@ -966,6 +1005,8 @@ function performSearch() {
         if (filtered.length > 0) {
             map.setView([filtered[0].lat, filtered[0].lng], 16);
             highlightProviderCard(filtered[0].id);
+            // Collapse sidebar on mobile to see result
+            if (window.innerWidth <= 768) document.querySelector('.sidebar').classList.remove('expanded');
         }
     }
 }
@@ -1018,7 +1059,8 @@ function updateStarVisuals(rating) {
     });
 }
 
-// --- 10x BETTER CHATBOT TRAINING ---
+// --- 3. INTELLIGENT CHATBOT (10x Better + API Option) ---
+
 function initChatbot() {
     const toggleBtn = document.getElementById('chatbotToggle');
     const chatWindow = document.getElementById('chatWindow');
@@ -1030,25 +1072,37 @@ function initChatbot() {
         chatWindow.classList.toggle('open');
         if (chatWindow.classList.contains('open')) {
             if (document.getElementById('chatMessages').children.length === 0) {
-                appendBotMessage("Hi! I'm ServiceBot. I can help with finding shops, routing, or account issues. Ask me anything!");
+                appendBotMessage("Hi! I'm ServiceBot (AI Enhanced). \nAsk me to 'Find a plumber', 'How to register', or 'Get directions'.");
             }
         }
     });
 
     closeBtn.addEventListener('click', () => chatWindow.classList.remove('open'));
-    sendBtn.addEventListener('click', handleUserSend);
-    input.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleUserSend(); });
-
-    function handleUserSend() {
+    
+    // Send logic
+    const handleUserSend = async () => {
         const text = input.value.trim();
         if (!text) return;
         appendUserMessage(text);
         input.value = '';
+        
+        // Show typing indicator? (optional improvement)
+        
+        // --- API SWITCH ---
+        // If you have an API key, use it. Otherwise use internal logic.
+        // To use AI: Uncomment the function call below.
+        
+        // const aiResponse = await askAI_API(text); 
+        // if(aiResponse) { appendBotMessage(aiResponse); return; }
+
         setTimeout(() => {
             const response = processChatCommand(text.toLowerCase());
             appendBotMessage(response);
         }, 500);
-    }
+    };
+
+    sendBtn.addEventListener('click', handleUserSend);
+    input.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleUserSend(); });
 }
 
 function appendUserMessage(text) {
@@ -1063,114 +1117,112 @@ function appendUserMessage(text) {
 function appendBotMessage(text) {
     const div = document.createElement('div');
     div.className = 'message-bubble bot-msg';
-    div.textContent = text;
+    // Allow line breaks
+    div.innerHTML = text.replace(/\n/g, '<br>');
     const container = document.getElementById('chatMessages');
     container.appendChild(div);
     container.scrollTop = container.scrollHeight;
 }
 
+// Enhanced Local Logic (10x Intelligence via Fuzzy Matching & Context)
 function processChatCommand(cmd) {
-    // --- GREETINGS ---
-    if (cmd === 'hi' || cmd === 'hello' || cmd === 'hey') {
-        return "Hello! Welcome to the Local Service Locator. How can I assist you today? You can ask about registering, finding a mechanic, or using the map.";
+    // 1. HELP / GREETING
+    if (/hi|hello|hey|start|help/.test(cmd)) {
+        return "Hello! I am your GIS Assistant. I can help you:\n1. Find shops (e.g., 'Find plumber')\n2. Navigate (e.g., 'Route to shop')\n3. Account help (e.g., 'How to login')\n\nWhat do you need?";
     }
 
-    // --- 1. REGISTRATION, LOGIN & ROLES ---
-    if (cmd.includes('register') || cmd.includes('sign up') || cmd.includes('create account') || cmd.includes('make account')) {
-        return "To Register: Click the 'Register' button in the top-right corner. Fill in your Username, Password, and a Security Question (for password recovery). Choose 'Service Provider' if you own a shop, or 'Regular User' if you just want to find services.";
-    }
-    if (cmd.includes('login') || cmd.includes('sign in') || cmd.includes('log in')) {
-        return "To Login: Click 'Login' at the top-right. Enter your username and password. If you forgot your password, click the 'Forgot Password?' link in the login window.";
-    }
-    if (cmd.includes('forget') || cmd.includes('recover') || cmd.includes('reset password') || cmd.includes('lost password')) {
-        return "Forgot Password? No problem. In the Login window, click 'Forgot Password?'. You will need to enter your username and answer the Security Question you set during registration.";
-    }
-    if (cmd.includes('role') || cmd.includes('provider') || cmd.includes('user account') || cmd.includes('difference')) {
-        return "There are two account types: \n1) **Regular User**: Can search for shops, get directions, and write reviews. \n2) **Service Provider**: Can add their own shop to the map, edit its details, and attract customers.";
-    }
-
-    // --- 2. ADD, EDIT & DELETE SHOPS ---
-    if (cmd.includes('add shop') || cmd.includes('add service') || cmd.includes('create shop') || cmd.includes('list my shop')) {
-        return "To Add a Shop: \n1. Login as a 'Service Provider'. \n2. Click the 'Add Shop' button in the top header. \n3. Fill in the form (Name, Type, Contact). \n4. Click 'Pick on Map' to set your precise location. \n5. Click 'Save Shop'.";
-    }
-    if (cmd.includes('edit shop') || cmd.includes('modify') || cmd.includes('update shop') || cmd.includes('change detail')) {
-        return "To Edit Your Shop: \n1. Find your shop on the map and click it. \n2. Click 'View Details'. \n3. If you are the owner (and logged in), you will see a 'Modify Shop' button at the bottom. Click it to update info.";
-    }
-    if (cmd.includes('delete shop') || cmd.includes('remove shop') || cmd.includes('erase shop')) {
-        return "To Delete a Shop: Open the shop details window. If you are the owner, a red 'Delete' button will appear at the bottom. Click it to permanently remove your shop from the system.";
-    }
-
-    // --- 3. SEARCH & FILTERS ---
-    if (cmd.includes('search') || cmd.includes('find') || cmd.includes('looking for')) {
-        return "Using Search: Type a shop name (e.g., 'Ali Auto') or a service type (e.g., 'plumber') in the top search bar and press Enter. The map will automatically highlight matching shops.";
-    }
-    if (cmd.includes('filter') || cmd.includes('sort') || cmd.includes('category')) {
-        return "Using Filters: Look at the left sidebar. You can filter shops by **Service Type** (Electrician, Plumber, etc.) or **Rating** (e.g., 4+ Stars). Click 'Apply Filters' to update the map.";
-    }
-    if (cmd.includes('radius') || cmd.includes('range') || cmd.includes('distance')) {
-        return "Search Radius: Use the slider in the left sidebar to set a search range (from 0.5km to 5km). The map shows a blue circle indicating the area being searched around your location.";
+    // 2. SEARCH & FINDING (Context aware)
+    if (/find|search|show|where is|looking for/.test(cmd)) {
+        if (/plumber/.test(cmd)) {
+            document.getElementById('serviceType').value = 'plumber';
+            applyFilters();
+            return "I have filtered the map to show **Plumbers** near you.";
+        }
+        if (/electrician/.test(cmd)) {
+            document.getElementById('serviceType').value = 'electrician';
+            applyFilters();
+            return "Showing **Electricians** in your area.";
+        }
+        if (/mechanic|repair|auto/.test(cmd)) {
+            document.getElementById('serviceType').value = 'mechanic';
+            applyFilters();
+            return "Showing **Mechanic** shops.";
+        }
+        if (/wash|clean/.test(cmd)) {
+            document.getElementById('serviceType').value = 'carwash';
+            applyFilters();
+            return "Showing **Car Wash** stations.";
+        }
+        return "What kind of shop are you looking for? (Plumber, Electrician, Mechanic, Car Wash)";
     }
 
-    // --- 4. ROUTING & NAVIGATION (ENHANCED) ---
-    if (cmd.includes('route') || cmd.includes('direction') || cmd.includes('navigate') || cmd.includes('go to')) {
-        return "Routing: Click on a shop -> 'View Details'. \n- **Me -> Shop**: Draws a path from your GPS location to the shop. \n- **Shop -> Me**: Draws a path from the shop to you (useful for home service). \n\n*New:* You can now switch between Walk 🚶, Bike 🚴, and Car 🚗 modes!";
-    }
-    if (cmd.includes('mode') || cmd.includes('walk') || cmd.includes('bike') || cmd.includes('car')) {
-        return "Travel Modes: When a route is active, buttons appear at the top-right of the map. Click 'Walking', 'Cycling', or 'Driving' to get accurate time estimates for your travel method.";
-    }
-    if (cmd.includes('track') || cmd.includes('live') || cmd.includes('gps')) {
-        return "Live Tracking: If you are using this on a mobile phone while moving, the 'Me' marker will automatically update its position every 5 seconds to keep your route accurate.";
-    }
-    if (cmd.includes('narrator') || cmd.includes('voice') || cmd.includes('speak')) {
-        return "Voice Navigation: Click the 'Speaker' icon in the map controls (top-right). The app will read out the route instructions to you.";
-    }
-
-    // --- 5. REVIEWS & RATINGS ---
-    if (cmd.includes('review') || cmd.includes('rating') || cmd.includes('star') || cmd.includes('comment')) {
-        return "Reviews: Open a shop's details and scroll down. If you are logged in as a User, you can click the stars (1-5) and write a comment to share your experience.";
-    }
-    if (cmd.includes('best shop') || cmd.includes('top rated') || cmd.includes('good')) {
-        return "Find Top Shops: In the sidebar, change the 'Rating' filter to '5 Stars' or '4+ Stars' and click Apply. Only the highly-rated shops will remain on the map.";
-    }
-
-    // --- 6. SPECIFIC SERVICE QUERIES ---
-    if (cmd.includes('plumber') || cmd.includes('pipe') || cmd.includes('leak')) {
-        document.getElementById('serviceType').value = 'plumber';
-        applyFilters();
-        return "Plumbers: They fix pipes, leaks, and water systems. I have filtered the map to show only Plumbers near you.";
-    }
-    if (cmd.includes('electrician') || cmd.includes('wire') || cmd.includes('light')) {
-        document.getElementById('serviceType').value = 'electrician';
-        applyFilters();
-        return "Electricians: They handle wiring, fans, and electrical faults. The map now shows Electricians.";
-    }
-    if (cmd.includes('mechanic') || cmd.includes('repair') || cmd.includes('car fix')) {
-        document.getElementById('serviceType').value = 'mechanic';
-        applyFilters();
-        return "Mechanics: Experts in car and bike repair. I've highlighted all Mechanic shops on the map.";
-    }
-    if (cmd.includes('car wash') || cmd.includes('cleaning') || cmd.includes('wash')) {
-        document.getElementById('serviceType').value = 'carwash';
-        applyFilters();
-        return "Car Wash: Need a clean vehicle? I've filtered the map to show Car/Bike Wash stations.";
-    }
-
-    // --- 7. BENEFITS & PURPOSE ---
-    if (cmd.includes('benefit') || cmd.includes('why') || cmd.includes('advantage')) {
-        return "Why use this App? \n1. **Convenience**: Find help instantly near your location. \n2. **Trust**: See real ratings before calling. \n3. **Navigation**: Get exact directions without asking people. \n4. **Business**: Shop owners get free digital exposure.";
+    // 3. ROUTING & NAVIGATION
+    if (/route|direction|go to|navigate|path/.test(cmd)) {
+        return "To navigate:\n1. Click on a shop icon.\n2. Click 'View Details'.\n3. Click 'Route'.\n\nYou can switch between **Car**, **Bike**, or **Walk** mode in the top right corner!";
     }
     
-    // --- DEFAULT FALLBACK ---
-    return "I am not sure about that. I can help with Registration, Adding Shops, Routing (Walk/Bike/Car), Filters, or finding specific services like Plumbers or Mechanics. Try asking 'How do I route?'";
+    // 4. ACCOUNT ISSUES
+    if (/register|signup|create account/.test(cmd)) {
+        return "Click the **Register** button (top right). Choose 'Provider' if you own a shop, or 'User' if you are a customer.";
+    }
+    if (/password|forgot|reset/.test(cmd)) {
+        return "If you forgot your password, go to Login -> Click 'Forgot Password?'. You'll need to answer your security question.";
+    }
+
+    // 5. SHOP MANAGEMENT
+    if (/add shop|my shop|list shop/.test(cmd)) {
+        if(!currentUser || currentUser.role !== 'provider') {
+            return "You need to be logged in as a **Service Provider** to add a shop.";
+        }
+        return "Click 'Add Shop' in the header. You can pick the location directly on the map!";
+    }
+
+    // 6. FUN / GENERAL
+    if (/who are you|bot/.test(cmd)) {
+        return "I am ServiceBot, built to help you navigate this WebGIS application.";
+    }
+    if (/thank/.test(cmd)) {
+        return "You're welcome! Drive safely.";
+    }
+
+    return "I didn't quite catch that. Try saying 'Find a mechanic' or 'How to register'.";
 }
 
-// --- GEOSERVER HYBRID FUNCTION (FINAL & FIXED) ---
+// --- OPTIONAL: REAL AI API INTEGRATION ---
+// To use this: 
+// 1. Get an API Key from Google Gemini (aistudio.google.com) or OpenAI.
+// 2. Paste it below.
+// 3. Uncomment the call in handleUserSend().
+
+const AI_API_KEY = ""; // PASTE YOUR KEY HERE (e.g., "AIzaSy...")
+
+async function askAI_API(prompt) {
+    if (!AI_API_KEY) return null; // Fallback to local if no key
+
+    // Example using Google Gemini API (Generative Language)
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${AI_API_KEY}`;
+    
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: "You are a GIS assistant for a service locator app. Answer briefly: " + prompt }] }]
+            })
+        });
+        const data = await response.json();
+        return data.candidates[0].content.parts[0].text;
+    } catch (error) {
+        console.error("AI API Error:", error);
+        return "Sorry, I'm having trouble connecting to the AI brain right now.";
+    }
+}
+
 function toggleGeoServerLayer() {
     const btn = document.getElementById('togglePunjabBtn');
     const urlInput = document.getElementById('ngrokUrl');
     let baseUrl = urlInput.value.trim();
 
-    // Remove trailing slash if user added it
     if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
 
     if (!baseUrl) {
@@ -1178,44 +1230,29 @@ function toggleGeoServerLayer() {
         return;
     }
 
-    // FIX: Check if punjabLayer is not null BEFORE checking if it's on the map
     if (punjabLayer && map.hasLayer(punjabLayer)) {
-        // If layer exists, remove it
         map.removeLayer(punjabLayer);
         punjabLayer = null;
         btn.textContent = "Load Punjab Layer";
-        btn.style.background = ""; // Reset color
+        btn.style.background = ""; 
         btn.style.color = "";
         btn.style.borderColor = "#d69e2e";
     } else {
-        // Add the Layer
-        // UPDATED: Using Generic WMS endpoint for better compatibility
-        // UPDATED: Added tiled:true for performance
         punjabLayer = L.tileLayer.wms(`${baseUrl}/geoserver/wms`, {
             layers: 'myprojectwebgis:punjab_boundary',
             format: 'image/png',
             transparent: true,
             version: '1.1.0',
             tiled: true,
-            styles: '', // Force default style
+            styles: '',
             attribution: '© Local GeoServer (Punjab Govt)'
         });
-
-        // Add to map
         punjabLayer.addTo(map);
-
-        // AUTO-ZOOM TO PUNJAB (Fix for "It's not showing")
-        // Coordinates for Center of Punjab, Pakistan
-        map.flyTo([31.1704, 72.7097], 7, {
-            animate: true,
-            duration: 1.5
-        });
+        map.flyTo([31.1704, 72.7097], 7, { animate: true, duration: 1.5 });
         
-        // Update Button UI
         btn.textContent = "Hide Punjab Layer";
         btn.style.background = "#d69e2e";
         btn.style.color = "white";
-
         alert("Loading Punjab Layer... \nI am zooming you out to Punjab so you can see it!");
     }
 }

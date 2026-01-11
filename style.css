@@ -1,239 +1,157 @@
 /* --- RESET & BASIC SETUP --- */
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: 'Segoe UI', sans-serif; background-color: #f5f5f5; color: #333; overflow: hidden; height: 100vh; width: 100vw; }
+body { font-family: 'Segoe UI', sans-serif; background-color: #f5f5f5; color: #333; overflow-x: hidden; height: 100vh; }
 .container { display: flex; flex-direction: column; height: 100%; }
 
-/* --- HEADER & NAVIGATION --- */
+/* --- HEADER (Original Gradient) --- */
 .header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0.8rem 1.5rem;
-    background: white; /* Clean white background like the image */
-    color: #333;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    padding: 0.8rem 2rem;
+    /* User requested Original Gradient Colors */
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     z-index: 1100;
-    position: relative;
-    flex-wrap: wrap; /* Allow wrapping for search bar */
+    flex-wrap: wrap;
+    gap: 15px;
 }
 
-/* Logo Section */
-.logo-container {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-.logo-icon i {
-    font-size: 1.5rem;
-    color: #333; 
-}
-.logo-text {
-    display: flex;
-    flex-direction: column;
-}
-.logo-text h1 {
-    font-size: 1rem;
-    font-weight: 700;
-    margin: 0;
-    color: #000;
-}
-.logo-text small {
-    font-size: 0.75rem;
-    color: #666;
+/* Logo styling */
+.logo { display: flex; align-items: center; gap: 0.8rem; }
+.logo i { font-size: 1.8rem; }
+.logo-text { display: flex; flex-direction: column; }
+.logo-text h1 { font-size: 1.5rem; font-weight: 600; margin: 0; line-height: 1.2; }
+.logo-text small { 
+    font-size: 0.85rem; 
+    color: rgba(255,255,255,0.9); 
+    display: block; 
     margin-top: 2px;
 }
 
-/* Auth Section */
-.auth-section {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
+/* Auth Buttons */
+.auth-section { display: flex; align-items: center; gap: 10px; }
+#welcomeUser { font-weight: 500; font-size: 0.95rem; margin-right: 5px; }
 
-#loggedInView, #loggedOutView {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-/* Text Buttons (Login/Register/Logout) */
-.btn-text-only {
-    background: none;
-    border: none;
-    font-weight: 600;
-    font-size: 0.9rem;
-    color: #333;
-    cursor: pointer;
-    padding: 5px;
-}
-.btn-text-only:hover { text-decoration: underline; }
-
-/* Small Action Buttons (Add Shop, Admin) */
-.btn-sm-primary {
-    background: #667eea;
+/* Buttons */
+.btn-secondary-light {
+    background: rgba(255,255,255,0.2);
     color: white;
-    border: none;
-    padding: 5px 10px;
-    border-radius: 4px;
-    font-size: 0.8rem;
+    border: 1px solid rgba(255,255,255,0.4);
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
     cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.3s;
 }
-.btn-sm-warning {
-    background: #ecc94b;
-    color: #333;
-    border: none;
-    padding: 5px 10px;
-    border-radius: 4px;
-    font-size: 0.8rem;
-    cursor: pointer;
+.btn-secondary-light:hover { background: rgba(255,255,255,0.4); }
+
+.btn-primary { 
+    background: #48bb78; color: white; border: none; padding: 0.5rem 1rem; 
+    border-radius: 20px; cursor: pointer; font-weight: 600; 
+}
+.btn-warning {
+    background: #ecc94b; color: #744210; border: none; padding: 0.5rem 1rem;
+    border-radius: 20px; cursor: pointer; font-weight: 600;
 }
 
 /* Search Bar */
-.search-bar {
-    display: flex;
-    flex: 1;
-    max-width: 400px;
-    margin-left: 20px;
-}
-.search-bar input {
-    flex: 1;
-    padding: 0.5rem 1rem;
-    border: 1px solid #e2e8f0;
-    border-radius: 20px 0 0 20px;
-    outline: none;
-}
-.search-bar button {
-    padding: 0.5rem 1rem;
-    border: 1px solid #e2e8f0;
-    border-left: none;
-    border-radius: 0 20px 20px 0;
-    background: #f7fafc;
-    cursor: pointer;
-}
+.search-bar { display: flex; flex: 1; max-width: 500px; margin: 0 20px; }
+.search-bar input { flex: 1; padding: 0.6rem 1rem; border: none; border-radius: 25px 0 0 25px; outline: none; }
+.search-bar button { padding: 0.6rem 1.5rem; border: none; border-radius: 0 25px 25px 0; background: #4a5568; color: white; cursor: pointer; }
 
 /* --- MAIN LAYOUT --- */
 .main-content { display: flex; flex: 1; overflow: hidden; position: relative; }
 
-/* --- SIDEBAR & MAP --- */
-.sidebar {
-    width: 320px;
-    background: white;
-    padding: 1rem;
-    overflow-y: auto;
-    box-shadow: 2px 0 10px rgba(0,0,0,0.1);
-    z-index: 500;
-}
+/* --- SIDEBAR (Desktop) --- */
+.sidebar { width: 350px; background: white; padding: 1.5rem; overflow-y: auto; box-shadow: 2px 0 10px rgba(0,0,0,0.1); z-index: 500; }
+.mobile-handle { display: none; } /* Hidden on desktop */
+
+/* --- MAP --- */
 .map-container { flex: 1; position: relative; }
 #map { height: 100%; width: 100%; }
 
-/* --- MAP CONTROLS --- */
+/* Map Controls */
 .map-controls { position: absolute; top: 10px; right: 10px; z-index: 1000; display: flex; flex-direction: column; gap: 8px; }
-.map-btn { width: 35px; height: 35px; border: none; border-radius: 5px; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.2); cursor: pointer; font-size: 1rem; color: #555; display: flex; justify-content: center; align-items: center; }
+.map-btn { width: 40px; height: 40px; border: none; border-radius: 8px; background: white; box-shadow: 0 2px 6px rgba(0,0,0,0.3); cursor: pointer; font-size: 1.1rem; color: #4a5568; display: flex; justify-content: center; align-items: center; }
 .map-btn:hover, .map-btn.active { background: #667eea; color: white; }
 
-/* --- PROVIDER CARD --- */
-.provider-card { border: 1px solid #eee; padding: 10px; margin-bottom: 10px; border-radius: 6px; cursor: pointer; background: white; }
-.provider-card:hover { border-color: #667eea; }
-.provider-name { font-weight: bold; font-size: 0.95rem; }
-.provider-service { font-size: 0.8rem; color: #666; background: #f0f0f0; padding: 2px 5px; border-radius: 3px; }
-.stars { color: #fbbf24; font-size: 0.8rem; }
-.status-badge { font-size: 0.7rem; padding: 2px 4px; border-radius: 3px; margin-left: 5px; }
+/* Provider Cards */
+.provider-card { background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; cursor: pointer; transition: all 0.3s; }
+.provider-card:hover, .provider-card.active { border-color: #667eea; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+.provider-name { font-weight: 600; }
+.stars { color: #fbbf24; }
+.status-badge { font-size: 0.8rem; padding: 2px 6px; border-radius: 4px; margin-left: 10px; }
 .status-open { background: #c6f6d5; color: #22543d; }
 .status-closed { background: #fed7d7; color: #822727; }
 
-/* --- COMMON UI ELEMENTS --- */
-.btn-primary { width: 100%; padding: 0.7rem; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; margin-top: 5px; }
-.btn-secondary { width: 100%; padding: 0.7rem; background: #e2e8f0; color: #333; border: none; border-radius: 6px; cursor: pointer; margin-top: 5px; }
-.btn-danger { width: 100%; padding: 0.7rem; background: #e53e3e; color: white; border: none; border-radius: 6px; cursor: pointer; margin-top: 5px; }
-.filter-group { margin-bottom: 10px; }
-.filter-group label { display: block; font-size: 0.9rem; margin-bottom: 3px; font-weight: 600; }
-.filter-group select, .filter-group input { width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; }
+/* Modals */
+.modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); }
+.modal-content { background-color: white; margin: 5% auto; padding: 0; border-radius: 12px; width: 90%; max-width: 450px; max-height: 90vh; overflow-y: auto; }
+.modal-header { display: flex; justify-content: space-between; padding: 1.5rem; border-bottom: 1px solid #eee; background: #f8f9fa; }
+.form-group { padding: 1rem 1.5rem; } 
+.form-group input, .form-group select, .form-group textarea { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px; }
+.form-actions { padding: 1.5rem; border-top: 1px solid #eee; display: flex; gap: 1rem; }
+.btn-secondary { width: 100%; padding: 0.75rem; background: #e2e8f0; color: #4a5568; border: none; border-radius: 8px; cursor: pointer; }
+.btn-danger { width: 100%; padding: 0.75rem; background: #e53e3e; color: white; border: none; border-radius: 8px; cursor: pointer; }
 
-/* --- MODALS --- */
-.modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
-.modal-content { background: white; margin: 5% auto; width: 90%; max-width: 450px; border-radius: 8px; overflow: hidden; box-shadow: 0 5px 15px rgba(0,0,0,0.3); max-height: 90vh; overflow-y: auto; }
-.small-modal { max-width: 350px; }
-.modal-header { padding: 15px; background: #f8f9fa; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
-.modal-header h2 { font-size: 1.1rem; }
-.close { font-size: 1.5rem; cursor: pointer; }
-.form-group { padding: 10px 15px; }
-.form-actions { padding: 15px; border-top: 1px solid #eee; display: flex; gap: 10px; }
-.draggable-header { cursor: move; }
-
-/* --- CHATBOT --- */
-.chat-toggle-btn { position: fixed; bottom: 20px; right: 20px; width: 50px; height: 50px; background: #667eea; border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; font-size: 24px; cursor: pointer; z-index: 3000; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
-.chat-window { position: fixed; bottom: 80px; right: 20px; width: 300px; height: 400px; background: white; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.2); z-index: 3000; display: none; flex-direction: column; overflow: hidden; }
+/* Chatbot */
+.chat-toggle-btn { position: fixed; bottom: 20px; right: 20px; width: 60px; height: 60px; background: #667eea; border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; font-size: 28px; z-index: 3000; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+.chat-window { position: fixed; bottom: 90px; right: 20px; width: 350px; height: 450px; background: white; border-radius: 12px; z-index: 3000; display: none; flex-direction: column; box-shadow: 0 5px 20px rgba(0,0,0,0.2); }
 .chat-window.open { display: flex; }
+.chat-header { background: #667eea; color: white; padding: 15px; display: flex; justify-content: space-between; }
 .chat-messages { flex: 1; padding: 10px; overflow-y: auto; background: #f7fafc; }
-.message-bubble { padding: 8px 12px; border-radius: 15px; margin-bottom: 8px; font-size: 0.9rem; max-width: 80%; }
+.chat-input-area { padding: 10px; display: flex; gap: 10px; border-top: 1px solid #eee; }
+.chat-input-area input { flex: 1; padding: 8px; border-radius: 20px; border: 1px solid #ddd; }
+.message-bubble { padding: 8px 12px; margin-bottom: 8px; border-radius: 15px; max-width: 80%; font-size: 0.9rem; }
 .bot-msg { background: #e2e8f0; align-self: flex-start; }
-.user-msg { background: #667eea; color: white; align-self: flex-end; margin-left: auto; }
-.chat-input-area { padding: 10px; border-top: 1px solid #eee; display: flex; gap: 5px; }
-.chat-input-area input { flex: 1; padding: 5px; border: 1px solid #ddd; border-radius: 4px; }
+.user-msg { background: #667eea; color: white; align-self: flex-end; }
 
-/* --- ROUTING INSTRUCTIONS --- */
-.leaflet-routing-container {
-    background: white !important;
-    padding: 10px !important;
-    max-height: 200px !important;
-    overflow-y: auto !important;
-    width: 280px !important;
-    position: absolute !important;
-    top: 50px !important;
-    right: 50px !important;
-    z-index: 9999 !important;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.2) !important;
-    display: none;
-}
+/* Routing */
+.leaflet-routing-container { background: white; padding: 10px; width: 280px; position: absolute; top: 60px; right: 60px; z-index: 9999; display: none; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
 
 /* =========================================
-   MOBILE RESPONSIVE DESIGN (Based on Request)
+   MOBILE RESPONSIVE DESIGN (Required Changes)
    ========================================= */
 @media (max-width: 768px) {
-    /* 1. Header Layout */
+    /* 1. Mobile Header: Keep Gradient, Adjust Layout */
     .header {
-        flex-direction: row; /* Force row layout */
+        flex-direction: row; /* Row layout: Icon -> Text -> Buttons */
         justify-content: space-between;
-        padding: 10px;
-        align-items: center;
-    }
-
-    .logo-container {
-        flex: 1; /* Take left space */
+        padding: 0.5rem 1rem;
+        gap: 5px;
     }
     
-    .logo-icon i { font-size: 1.2rem; }
-    .logo-text h1 { font-size: 0.9rem; }
-    .logo-text small { font-size: 0.65rem; }
+    /* 2. Logo Adjustments */
+    .logo { gap: 0.5rem; flex: 1; } /* Takes available space */
+    .logo i { font-size: 1.4rem; }
+    .logo-text h1 { font-size: 1rem; line-height: 1.1; }
+    .logo-text small { font-size: 0.7rem; color: rgba(255,255,255,0.8); }
 
-    /* Auth Section (Right side) */
-    .auth-section {
-        margin-left: 10px;
+    /* 3. Button Adjustments for Mobile */
+    .auth-section { margin-left: auto; }
+    .btn-secondary-light, .btn-primary, .btn-warning {
+        padding: 0.4rem 0.8rem;
+        font-size: 0.75rem; /* Smaller text */
     }
-    .btn-text-only { font-size: 0.8rem; padding: 3px; }
+    .desktop-only { display: none; } /* Hide "Hi User" */
+    .btn-label { display: none; } /* Hide "Add Shop" text, show only Icon */
     
-    /* Ensure Add Shop button is visible on mobile inside loggedInView */
-    #addProviderBtn {
-        padding: 4px 8px;
-        font-size: 0.75rem;
-    }
-    
-    .desktop-only { display: none; } /* Hide "Hi User" to save space */
-
-    /* 2. Search Bar - Move to next line */
+    /* 4. Search Bar: Move to next line */
     .search-bar {
-        order: 3; /* Push to bottom of flex */
+        order: 3; /* Push to bottom */
         width: 100%;
-        margin: 10px 0 0 0; /* Add top margin */
+        margin: 5px 0 0 0;
         max-width: none;
     }
+    .search-bar input { padding: 0.5rem; }
+    .search-bar button { padding: 0.5rem; }
 
-    /* 3. Bottom Sheet (Filters/List) */
-    .main-content {
-        display: block; /* Remove flex to allow absolute positioning */
-        height: calc(100vh - 100px); /* Adjust based on header height */
-    }
+    /* 5. Main Content Layout (Remove flex) */
+    .main-content { display: block; height: calc(100vh - 110px); } /* Adjust for header height */
 
+    /* 6. Map: Full Screen background */
     .map-container {
         width: 100%;
         height: 100%;
@@ -242,47 +160,58 @@ body { font-family: 'Segoe UI', sans-serif; background-color: #f5f5f5; color: #3
         z-index: 1;
     }
 
+    /* 7. Bottom Window (Filters) - Movable */
     .sidebar {
-        position: absolute;
+        position: fixed;
         bottom: 0;
         left: 0;
         width: 100%;
-        height: auto;
-        max-height: 80vh; /* Max expansion */
-        min-height: 120px; /* "Peek" height */
         background: white;
         z-index: 2000;
         border-radius: 20px 20px 0 0;
-        box-shadow: 0 -5px 15px rgba(0,0,0,0.1);
-        transform: translateY(0);
-        transition: transform 0.3s ease;
-        padding-top: 30px; /* Space for handle */
+        box-shadow: 0 -5px 15px rgba(0,0,0,0.2);
+        
+        /* TRANSITION LOGIC */
+        height: 150px; /* Default: Peeking */
+        transition: height 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+        padding-top: 0; /* Handle takes top space */
+        overflow: hidden; /* Hide content when small */
     }
 
-    /* The "Handle" to drag/click */
-    .sidebar::before {
-        content: '';
-        position: absolute;
-        top: 10px;
-        left: 50%;
-        transform: translateX(-50%);
+    /* Expanded state */
+    .sidebar.expanded {
+        height: 70vh; /* Slides Up */
+        overflow-y: auto;
+    }
+
+    /* 8. The "Handle" to Slide Up/Down */
+    .mobile-handle {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 30px;
+        background: #f8f9fa; /* Light grey handle area */
+        cursor: pointer;
+        border-bottom: 1px solid #eee;
+        position: sticky; /* Sticks to top of sidebar */
+        top: 0;
+        z-index: 10;
+    }
+    .handle-bar {
         width: 50px;
         height: 5px;
         background: #cbd5e0;
         border-radius: 3px;
-        cursor: pointer;
     }
     
-    /* Logic: We will use JS to toggle a class 'minimized' */
-    .sidebar.minimized {
-        transform: translateY(calc(100% - 150px)); /* Slide down, leave 150px visible */
-    }
-    
-    /* Routing box adjustments */
+    /* Routing Box Mobile */
     .leaflet-routing-container {
         width: 90% !important;
+        top: 10px !important;
         right: 5% !important;
         left: 5% !important;
-        top: 10px !important;
     }
+    
+    /* Adjust internal padding of filters so they don't hide behind handle */
+    .filters { padding: 1rem; }
 }

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ServicePro - Local Area Services</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -14,7 +14,10 @@
         <header class="header">
             <div class="logo">
                 <i class="fas fa-map-marked-alt"></i>
-                <h1>Local Service Locator</h1>
+                <div class="logo-text">
+                    <h1>Local Service Locator</h1>
+                    <div class="subtitle">Gopal Nagar Gulberg 3 Lahore</div>
+                </div>
             </div>
             
             <div class="auth-section">
@@ -24,13 +27,13 @@
                 </div>
                 <div id="loggedInView" style="display:none;">
                     <span id="welcomeUser">Hi, User</span>
-                    <button id="adminPanelBtn" class="btn-warning" style="display:none;">Admin Panel</button>
-                    <button id="logoutBtn" class="btn-secondary-light">Logout</button>
+                    <button id="adminPanelBtn" class="btn-warning" style="display:none;">Admin</button>
+                    <button id="logoutBtn" class="btn-secondary-light"><i class="fas fa-sign-out-alt"></i></button>
                 </div>
             </div>
 
             <div class="search-bar">
-                <input type="text" id="searchInput" placeholder="Search shops (mechanic, plumber...)">
+                <input type="text" id="searchInput" placeholder="Search shops...">
                 <button id="searchBtn"><i class="fas fa-search"></i></button>
             </div>
             <div class="user-actions">

@@ -12,10 +12,8 @@
 <body>
     <div class="container">
         <header class="header">
-            <div class="logo-container">
-                <div class="logo-icon">
-                    <i class="fas fa-map-marked-alt"></i>
-                </div>
+            <div class="logo">
+                <i class="fas fa-map-marked-alt"></i>
                 <div class="logo-text">
                     <h1>Local Service Locator</h1>
                     <small>Gopal Nagar Gulberg 3 Lahore</small>
@@ -24,31 +22,35 @@
             
             <div class="auth-section">
                 <div id="loggedOutView">
-                    <button id="loginBtnNav" class="btn-text-only">Login</button>
-                    <button id="registerBtnNav" class="btn-text-only">Register</button>
+                    <button id="loginBtnNav" class="btn-secondary-light">Login</button>
+                    <button id="registerBtnNav" class="btn-primary">Register</button>
                 </div>
                 
                 <div id="loggedInView" style="display:none;">
-                    <button id="addProviderBtn" class="btn-sm-primary" style="display:none;">
-                        <i class="fas fa-plus"></i> Shop
-                    </button>
-                    
-                    <button id="adminPanelBtn" class="btn-sm-warning" style="display:none;">Admin</button>
-                    
                     <span id="welcomeUser" class="desktop-only">Hi, User</span>
                     
-                    <button id="logoutBtn" class="btn-text-only">Logout</button>
+                    <button id="addProviderBtn" class="btn-primary" style="display:none;">
+                        <i class="fas fa-plus"></i> <span class="btn-label">Shop</span>
+                    </button>
+                    
+                    <button id="adminPanelBtn" class="btn-warning" style="display:none;">Admin</button>
+                    
+                    <button id="logoutBtn" class="btn-secondary-light">Logout</button>
                 </div>
             </div>
 
             <div class="search-bar">
-                <input type="text" id="searchInput" placeholder="Search (mechanic, plumber...)">
+                <input type="text" id="searchInput" placeholder="Search shops (mechanic, plumber...)">
                 <button id="searchBtn"><i class="fas fa-search"></i></button>
             </div>
         </header>
 
         <div class="main-content">
-            <aside class="sidebar">
+            <aside class="sidebar" id="sidebar">
+                <div class="mobile-handle" id="slideHandle">
+                    <div class="handle-bar"></div>
+                </div>
+
                 <div class="filters">
                     <h3>Filter Area Shops</h3>
                     
@@ -70,8 +72,6 @@
                             <option value="5">5 Stars</option>
                             <option value="4">4+ Stars</option>
                             <option value="3">3+ Stars</option>
-                            <option value="2">2+ Stars</option>
-                            <option value="1">1+ Stars</option>
                         </select>
                     </div>
                     
@@ -82,11 +82,8 @@
                     
                     <div class="filter-group" style="border-top: 2px dashed #cbd5e0; margin-top: 20px; padding-top: 15px;">
                         <label style="color: #d69e2e;"><i class="fas fa-server"></i> Local GeoServer</label>
-                        <input type="text" id="ngrokUrl" placeholder="Paste Ngrok URL here" 
-                               style="margin-bottom: 8px; font-family: monospace; font-size: 0.85rem; width: 100%; padding: 0.5rem; border: 1px solid #e2e8f0; border-radius: 4px;">
-                        <button id="togglePunjabBtn" class="btn-secondary" style="border: 1px solid #d69e2e; width: 100%;">
-                            Load Punjab Layer
-                        </button>
+                        <input type="text" id="ngrokUrl" placeholder="Ngrok URL..." style="width:100%; padding:5px; margin-bottom:5px;">
+                        <button id="togglePunjabBtn" class="btn-secondary" style="border: 1px solid #d69e2e; width: 100%;">Load Layer</button>
                     </div>
                     <button id="applyFilters" class="btn-primary">Apply Filters</button>
                 </div>
@@ -99,35 +96,22 @@
 
             <div class="map-container">
                 <div id="locationPickerMessage" class="picker-message" style="display:none;">
-                    Click on the map to set shop location
+                    Click on map to set location
                 </div>
                 <div id="map"></div>
                 <div class="map-controls">
-                    <button id="resetMapBtn" class="map-btn" title="Reset Map View">
-                        <i class="fas fa-compress-arrows-alt"></i>
-                    </button>
-                    <button id="locateMe" class="map-btn" title="Locate Me">
-                        <i class="fas fa-location-arrow"></i>
-                    </button>
-                    <button id="setOsmMap" class="map-btn active" title="Show Street Map">
-                        <i class="fas fa-map"></i>
-                    </button>
-                    <button id="setSatelliteMap" class="map-btn" title="Show Satellite View">
-                        <i class="fas fa-satellite"></i>
-                    </button>
-                    <button id="toggleNarratorBtn" class="map-btn" title="Toggle Voice Navigation" style="display:none;">
-                        <i class="fas fa-volume-up"></i>
-                    </button>
-                    <button id="toggleRouteInfoBtn" class="map-btn" title="Toggle Route Instructions" style="display:none;">
-                        <i class="fas fa-list-ul"></i>
-                    </button>
+                    <button id="resetMapBtn" class="map-btn"><i class="fas fa-compress-arrows-alt"></i></button>
+                    <button id="locateMe" class="map-btn"><i class="fas fa-location-arrow"></i></button>
+                    <button id="setOsmMap" class="map-btn active"><i class="fas fa-map"></i></button>
+                    <button id="setSatelliteMap" class="map-btn"><i class="fas fa-satellite"></i></button>
+                    <button id="toggleNarratorBtn" class="map-btn" style="display:none;"><i class="fas fa-volume-up"></i></button>
+                    <button id="toggleRouteInfoBtn" class="map-btn" style="display:none;"><i class="fas fa-list-ul"></i></button>
                 </div>
             </div>
         </div>
     </div>
 
     <div id="chatbotToggle" class="chat-toggle-btn"><i class="fas fa-robot"></i></div>
-
     <div id="chatWindow" class="chat-window">
         <div class="chat-header draggable-header">
             <div class="chat-title"><i class="fas fa-robot"></i> ServiceBot</div>
@@ -154,24 +138,24 @@
 
     <div id="registerModal" class="modal">
         <div class="modal-content small-modal">
-            <div class="modal-header draggable-header"><h2>Register Account</h2><span class="close">&times;</span></div>
+            <div class="modal-header draggable-header"><h2>Register</h2><span class="close">&times;</span></div>
             <form id="registerForm">
                 <div class="form-group"><label>Username</label><input type="text" id="regUsername" required></div>
                 <div class="form-group"><label>Password</label><div class="password-wrapper"><input type="password" id="regPassword" required><i class="fas fa-eye toggle-password" data-target="regPassword"></i></div></div>
-                <div class="form-group"><label>Security Question</label><select id="regSecurityQuestion" required style="width:100%; padding:8px;"><option value="pet">Pet's Name?</option><option value="city">Birth City?</option></select></div>
+                <div class="form-group"><label>Security Question</label><select id="regSecurityQuestion" required style="width:100%;"><option value="pet">Pet's Name?</option><option value="city">Birth City?</option></select></div>
                 <div class="form-group"><label>Answer</label><input type="text" id="regSecurityAnswer" required></div>
-                <div class="form-group"><label>Account Type</label><select id="regRole"><option value="user">Regular User</option><option value="provider">Service Provider</option></select></div>
-                <div class="form-actions"><button type="submit" class="btn-primary">Create Account</button></div>
+                <div class="form-group"><label>Account Type</label><select id="regRole"><option value="user">Regular User</option><option value="provider">Shop Owner</option></select></div>
+                <div class="form-actions"><button type="submit" class="btn-primary">Register</button></div>
             </form>
         </div>
     </div>
 
     <div id="forgotPasswordModal" class="modal">
         <div class="modal-content small-modal">
-            <div class="modal-header draggable-header"><h2>Recover Password</h2><span class="close">&times;</span></div>
+            <div class="modal-header draggable-header"><h2>Recover</h2><span class="close">&times;</span></div>
             <form id="forgotPasswordForm">
                 <div class="form-group"><label>Username</label><input type="text" id="recoverUsername" required></div>
-                <div class="form-group"><label>Security Answer</label><input type="text" id="recoverAnswer" required></div>
+                <div class="form-group"><label>Answer</label><input type="text" id="recoverAnswer" required></div>
                 <div class="form-actions"><button type="submit" class="btn-primary">Recover</button></div>
             </form>
         </div>
@@ -179,14 +163,13 @@
 
     <div id="adminModal" class="modal">
         <div class="modal-content">
-            <div class="modal-header draggable-header"><h2>Admin Dashboard</h2><span class="close">&times;</span></div>
+            <div class="modal-header draggable-header"><h2>Admin</h2><span class="close">&times;</span></div>
             <div style="padding: 20px;">
                 <div class="dashboard-stats">
                     <div class="stat-card clickable-card" id="statUsers"><h3>Users</h3><span id="adminTotalUsers">-</span></div>
                     <div class="stat-card clickable-card" id="statShops"><h3>Shops</h3><span id="adminTotalShops">-</span></div>
                 </div>
                 <div id="adminListSection" style="display:none; margin-top: 15px;"><h3 id="adminListTitle">List</h3><div id="adminListContainer" class="admin-list-container"></div></div>
-                <button id="resetSystemBtn" class="btn-danger" style="margin-top:20px;">Reset Data</button>
             </div>
         </div>
     </div>
@@ -196,7 +179,7 @@
             <div class="modal-header draggable-header"><h2 id="modalTitleProvider">Add Shop</h2><span class="close">&times;</span></div>
             <form id="providerForm">
                 <input type="hidden" id="editProviderId"> 
-                <div class="form-group"><label>Shop Name</label><input type="text" id="providerName" required></div>
+                <div class="form-group"><label>Name</label><input type="text" id="providerName" required></div>
                 <div class="form-group"><label>Service</label><select id="providerService"><option value="electrician">Electrician</option><option value="plumber">Plumber</option><option value="mechanic">Mechanic</option><option value="carwash">Car Wash</option></select></div>
                 <div style="display: flex; gap: 10px; padding: 0 1.5rem 1.5rem;"><div style="flex:1;"><label>Open</label><input type="time" id="providerOpenTime" required style="width:100%;"></div><div style="flex:1;"><label>Close</label><input type="time" id="providerCloseTime" required style="width:100%;"></div></div>
                 <div class="form-group"><label>Location</label><div style="display:flex; gap:5px;"><input type="number" id="newLat" placeholder="Lat"><input type="number" id="newLng" placeholder="Lng"></div><button type="button" id="pickLocationBtn" class="btn-secondary" style="margin-top:5px; width:100%;">Pick on Map</button><span id="locationStatus" style="font-size:0.8rem; color:green; display:none;">Set</span></div>

@@ -218,6 +218,12 @@ body {
 .chat-input-area button:hover { background: #5a67d8; }
 
 /* --- RESPONSIVE MEDIA QUERIES (MOBILE OPTIMIZATIONS) --- */
+
+/* NEW: Hide the mobile Add Shop button on desktop screens */
+@media (min-width: 769px) {
+    #addProviderBtnMobile { display: none !important; }
+}
+
 @media (max-width: 768px) { 
     /* 1. Header: Very Compact Row Layout */
     .header { 
@@ -238,16 +244,15 @@ body {
     
     .logo i { font-size: 1.4rem; color: white; }
     
-    /* CHANGED: Make Logo text visible and compact on mobile */
     .logo-text { display: flex; flex-direction: column; }
     .logo h1 { 
-        display: block; /* Visible now */
+        display: block; 
         font-size: 1rem; 
         line-height: 1.1;
     } 
     .subtitle {
         display: block;
-        font-size: 0.7rem; /* Small subtitle */
+        font-size: 0.7rem; 
         line-height: 1.1;
         opacity: 0.9;
     }
@@ -276,8 +281,8 @@ body {
     /* 2. Layout: Map takes more space */
     .main-content { 
         display: block;
-        height: auto; /* Let flex container handle it */
-        flex: 1; /* Grow to fill rest of screen */
+        height: auto; 
+        flex: 1; 
         position: relative; 
     } 
 
@@ -289,12 +294,12 @@ body {
         z-index: 1;
     } 
     
-    /* CHANGED: Sidebar Fixed at Bottom with clear Visibility */
+    /* Sidebar Fixed at Bottom with clear Visibility */
     .sidebar { 
         width: 100%; 
         height: auto; 
         max-height: 80vh; 
-        position: fixed; /* Fixed to viewport bottom */
+        position: fixed; 
         bottom: 0; 
         left: 0;
         z-index: 2000;
@@ -302,7 +307,6 @@ body {
         border-radius: 20px 20px 0 0;
         box-shadow: 0 -5px 15px rgba(0,0,0,0.2);
         
-        /* Adjusted transform to show handle clearly */
         transform: translateY(calc(100% - 35px)); 
         transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
         padding: 0 1.5rem 1.5rem 1.5rem;
@@ -312,13 +316,13 @@ body {
         transform: translateY(0);
     }
 
-    /* CHANGED: Handle Styling with Symbol */
+    /* Handle Styling with Symbol */
     .mobile-sidebar-handle {
         display: flex;
         justify-content: center;
         align-items: center;
         width: 100%;
-        height: 35px; /* Match calculations */
+        height: 35px; 
         position: relative;
         cursor: pointer;
         background: white;
@@ -326,12 +330,11 @@ body {
         margin-bottom: 5px;
     }
     
-    /* The visual bar */
     .mobile-sidebar-handle::after {
-        display: none; /* Remove old bar style */
+        display: none; 
     }
     
-    /* New Arrow Symbol styling controlled by JS via class, or default here */
+    /* Arrow Symbol styling */
     .mobile-sidebar-handle i {
         color: #667eea;
         font-size: 1.2rem;

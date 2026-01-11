@@ -1,40 +1,44 @@
 /* --- RESET & BASIC SETUP --- */
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: 'Segoe UI', sans-serif; background-color: #f5f5f5; color: #333; overflow-x: hidden; height: 100vh; }
-.container { display: flex; flex-direction: column; height: 100%; }
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
 
-/* --- HEADER (Original Gradient) --- */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f5f5f5;
+    color: #333;
+    overflow-x: hidden;
+}
+
+.container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+/* --- HEADER & NAVIGATION --- */
 .header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 0.8rem 2rem;
-    /* User requested Original Gradient Colors */
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    z-index: 1100;
     flex-wrap: wrap;
     gap: 15px;
+    z-index: 1100;
 }
 
-/* Logo styling */
-.logo { display: flex; align-items: center; gap: 0.8rem; }
+.logo { display: flex; align-items: center; gap: 0.5rem; }
 .logo i { font-size: 1.8rem; }
-.logo-text { display: flex; flex-direction: column; }
-.logo-text h1 { font-size: 1.5rem; font-weight: 600; margin: 0; line-height: 1.2; }
-.logo-text small { 
-    font-size: 0.85rem; 
-    color: rgba(255,255,255,0.9); 
-    display: block; 
-    margin-top: 2px;
-}
+.logo h1 { font-size: 1.5rem; font-weight: 600; }
 
-/* Auth Buttons */
-.auth-section { display: flex; align-items: center; gap: 10px; }
-#welcomeUser { font-weight: 500; font-size: 0.95rem; margin-right: 5px; }
+.auth-section { order: 2; display: flex; align-items: center; gap: 10px; }
+#welcomeUser { margin-right: 5px; font-weight: 500; font-size: 0.95rem; }
 
-/* Buttons */
 .btn-secondary-light {
     background: rgba(255,255,255,0.2);
     color: white;
@@ -47,171 +51,298 @@ body { font-family: 'Segoe UI', sans-serif; background-color: #f5f5f5; color: #3
 }
 .btn-secondary-light:hover { background: rgba(255,255,255,0.4); }
 
-.btn-primary { 
-    background: #48bb78; color: white; border: none; padding: 0.5rem 1rem; 
-    border-radius: 20px; cursor: pointer; font-weight: 600; 
-}
 .btn-warning {
-    background: #ecc94b; color: #744210; border: none; padding: 0.5rem 1rem;
-    border-radius: 20px; cursor: pointer; font-weight: 600;
+    background: #ecc94b;
+    color: #744210;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: background 0.3s;
 }
+.btn-warning:hover { background: #d69e2e; }
 
-/* Search Bar */
-.search-bar { display: flex; flex: 1; max-width: 500px; margin: 0 20px; }
-.search-bar input { flex: 1; padding: 0.6rem 1rem; border: none; border-radius: 25px 0 0 25px; outline: none; }
-.search-bar button { padding: 0.6rem 1.5rem; border: none; border-radius: 0 25px 25px 0; background: #4a5568; color: white; cursor: pointer; }
+.search-bar { order: 1; display: flex; flex: 1; max-width: 500px; min-width: 250px; margin: 0 20px; }
+.search-bar input { flex: 1; padding: 0.75rem 1rem; border: none; border-radius: 25px 0 0 25px; font-size: 1rem; outline: none; }
+.search-bar button { padding: 0.75rem 1.5rem; border: none; border-radius: 0 25px 25px 0; background: #4a5568; color: white; cursor: pointer; transition: background 0.3s; }
+.search-bar button:hover { background: #2d3748; }
+
+.user-actions { order: 3; }
+.user-actions .btn-primary { background: #48bb78; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 25px; cursor: pointer; font-weight: 600; transition: background 0.3s; white-space: nowrap; }
+.user-actions .btn-primary:hover { background: #38a169; }
 
 /* --- MAIN LAYOUT --- */
 .main-content { display: flex; flex: 1; overflow: hidden; position: relative; }
 
-/* --- SIDEBAR (Desktop) --- */
+/* --- SIDEBAR & FILTERS --- */
 .sidebar { width: 350px; background: white; padding: 1.5rem; overflow-y: auto; box-shadow: 2px 0 10px rgba(0,0,0,0.1); z-index: 500; }
-.mobile-handle { display: none; } /* Hidden on desktop */
+.sidebar::-webkit-scrollbar { width: 6px; }
+.sidebar::-webkit-scrollbar-thumb { background-color: #cbd5e0; border-radius: 3px; }
+.filters h3, .providers-list h3 { margin-bottom: 1rem; color: #2d3748; font-weight: 600; }
+.filter-group { margin-bottom: 1.5rem; }
+.filter-group label { display: block; margin-bottom: 0.5rem; font-weight: 500; color: #4a5568; }
+.filter-group select, .filter-group input { width: 100%; padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 1rem; }
 
-/* --- MAP --- */
-.map-container { flex: 1; position: relative; }
-#map { height: 100%; width: 100%; }
+/* Sidebar Toggle Handle (Mobile Only) */
+.mobile-sidebar-handle { display: none; }
 
-/* Map Controls */
-.map-controls { position: absolute; top: 10px; right: 10px; z-index: 1000; display: flex; flex-direction: column; gap: 8px; }
-.map-btn { width: 40px; height: 40px; border: none; border-radius: 8px; background: white; box-shadow: 0 2px 6px rgba(0,0,0,0.3); cursor: pointer; font-size: 1.1rem; color: #4a5568; display: flex; justify-content: center; align-items: center; }
-.map-btn:hover, .map-btn.active { background: #667eea; color: white; }
+/* General Button Styles */
+.btn-primary { width: 100%; padding: 0.75rem; background: #667eea; color: white; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.3s; }
+.btn-primary:hover { background: #5a67d8; }
+.btn-secondary { width: 100%; padding: 0.75rem; background: #e2e8f0; color: #4a5568; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; }
+.btn-secondary:hover { background: #cbd5e0; }
+.btn-danger { padding: 0.75rem; background: #e53e3e; color: white; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.3s; }
+.btn-danger:hover { background: #c53030; }
 
-/* Provider Cards */
-.provider-card { background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; cursor: pointer; transition: all 0.3s; }
-.provider-card:hover, .provider-card.active { border-color: #667eea; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-.provider-name { font-weight: 600; }
+/* --- PROVIDER CARDS --- */
+.providers-list { margin-top: 2rem; }
+.provider-card { background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; cursor: pointer; transition: all 0.3s; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+.provider-card:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-color: #667eea; }
+.provider-card.active { border-color: #667eea; background: #f7fafc; }
+.provider-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem; }
+.provider-name { font-weight: 600; color: #2d3748; }
+.provider-service { background: #edf2f7; color: #4a5568; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.8rem; font-weight: 500; }
+.provider-rating { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
 .stars { color: #fbbf24; }
-.status-badge { font-size: 0.8rem; padding: 2px 6px; border-radius: 4px; margin-left: 10px; }
+.provider-address { color: #718096; font-size: 0.9rem; }
+.status-badge { font-size: 0.8rem; padding: 2px 6px; border-radius: 4px; font-weight: bold; margin-left: 10px; }
 .status-open { background: #c6f6d5; color: #22543d; }
 .status-closed { background: #fed7d7; color: #822727; }
 
-/* Modals */
+/* --- MAP AREA --- */
+.map-container { flex: 1; position: relative; }
+#map { height: 100%; width: 100%; }
+
+.map-controls { position: absolute; top: 10px; right: 10px; z-index: 1000; display: flex; flex-direction: column; gap: 8px; }
+.map-btn { width: 40px; height: 40px; border: none; border-radius: 8px; background: white; box-shadow: 0 2px 6px rgba(0,0,0,0.3); cursor: pointer; display: flex; justify-content: center; align-items: center; font-size: 1.1rem; color: #4a5568; transition: all 0.3s; }
+.map-btn:hover { background: #667eea; color: white; }
+.map-btn.active { background-color: #667eea; color: white; }
+
+.picker-message { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: white; padding: 10px 20px; border-radius: 25px; z-index: 2000; pointer-events: none; font-weight: bold; }
+
+/* --- MODALS & DRAGGABLE --- */
 .modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); }
-.modal-content { background-color: white; margin: 5% auto; padding: 0; border-radius: 12px; width: 90%; max-width: 450px; max-height: 90vh; overflow-y: auto; }
-.modal-header { display: flex; justify-content: space-between; padding: 1.5rem; border-bottom: 1px solid #eee; background: #f8f9fa; }
-.form-group { padding: 1rem 1.5rem; } 
-.form-group input, .form-group select, .form-group textarea { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px; }
-.form-actions { padding: 1.5rem; border-top: 1px solid #eee; display: flex; gap: 1rem; }
-.btn-secondary { width: 100%; padding: 0.75rem; background: #e2e8f0; color: #4a5568; border: none; border-radius: 8px; cursor: pointer; }
-.btn-danger { width: 100%; padding: 0.75rem; background: #e53e3e; color: white; border: none; border-radius: 8px; cursor: pointer; }
+.modal-content { background-color: white; margin: 3% auto; padding: 0; border-radius: 12px; width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.2); animation: modalSlideIn 0.3s ease-out; position: fixed; top: 10%; left: 50%; transform: translateX(-50%); }
+@keyframes modalSlideIn { from { opacity: 0; top: 5%; } to { opacity: 1; top: 10%; } }
 
-/* Chatbot */
-.chat-toggle-btn { position: fixed; bottom: 20px; right: 20px; width: 60px; height: 60px; background: #667eea; border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; font-size: 28px; z-index: 3000; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
-.chat-window { position: fixed; bottom: 90px; right: 20px; width: 350px; height: 450px; background: white; border-radius: 12px; z-index: 3000; display: none; flex-direction: column; box-shadow: 0 5px 20px rgba(0,0,0,0.2); }
-.chat-window.open { display: flex; }
-.chat-header { background: #667eea; color: white; padding: 15px; display: flex; justify-content: space-between; }
-.chat-messages { flex: 1; padding: 10px; overflow-y: auto; background: #f7fafc; }
-.chat-input-area { padding: 10px; display: flex; gap: 10px; border-top: 1px solid #eee; }
-.chat-input-area input { flex: 1; padding: 8px; border-radius: 20px; border: 1px solid #ddd; }
-.message-bubble { padding: 8px 12px; margin-bottom: 8px; border-radius: 15px; max-width: 80%; font-size: 0.9rem; }
-.bot-msg { background: #e2e8f0; align-self: flex-start; }
-.user-msg { background: #667eea; color: white; align-self: flex-end; }
+/* Draggable Header Styling */
+.draggable-header { cursor: move; user-select: none; background: #f8f9fa; border-bottom: 1px solid #e2e8f0; border-radius: 12px 12px 0 0; }
+.draggable-header:active { cursor: grabbing; background: #edf2f7; }
 
-/* Routing */
-.leaflet-routing-container { background: white; padding: 10px; width: 280px; position: absolute; top: 60px; right: 60px; z-index: 9999; display: none; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+.small-modal { max-width: 350px; }
+.modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1.5rem; }
+.close { font-size: 1.5rem; cursor: pointer; color: #718096; }
+.close:hover { color: #e53e3e; }
+.form-group { margin-bottom: 1.5rem; padding: 0 1.5rem; }
+.form-actions { display: flex; gap: 1rem; padding: 1.5rem; border-top: 1px solid #e2e8f0; }
 
-/* =========================================
-   MOBILE RESPONSIVE DESIGN (Required Changes)
-   ========================================= */
-@media (max-width: 768px) {
-    /* 1. Mobile Header: Keep Gradient, Adjust Layout */
-    .header {
-        flex-direction: row; /* Row layout: Icon -> Text -> Buttons */
-        justify-content: space-between;
-        padding: 0.5rem 1rem;
+/* --- PASSWORD TOGGLE --- */
+.password-wrapper { position: relative; display: flex; align-items: center; }
+.password-wrapper input { width: 100%; padding-right: 35px; } 
+.toggle-password { position: absolute; right: 10px; cursor: pointer; color: #a0aec0; z-index: 10; }
+.toggle-password:hover { color: #667eea; }
+
+/* --- DASHBOARD & DETAILS --- */
+.dashboard-stats { display: flex; gap: 20px; margin-bottom: 20px; }
+.stat-card { background: #f7fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; flex: 1; text-align: center; }
+.stat-card h3 { font-size: 0.9rem; color: #718096; margin-bottom: 5px; }
+.stat-card span { font-size: 1.5rem; font-weight: bold; color: #2d3748; }
+.detail-item { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; padding: 0.75rem; background: #f7fafc; border-radius: 8px; margin-left: 1.5rem; margin-right: 1.5rem; }
+.detail-item i { color: #667eea; width: 20px; }
+.rating-section { margin: 1.5rem; padding-top: 1rem; border-top: 1px solid #e2e8f0; }
+.current-rating { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; }
+.rating-stars { display: flex; gap: 0.25rem; }
+.rating-stars .star { font-size: 1.5rem; color: #e2e8f0; cursor: pointer; transition: color 0.2s; }
+.rating-stars .star:hover, .rating-stars .star.active { color: #fbbf24; }
+.reviews-list-container { margin-top: 20px; max-height: 200px; overflow-y: auto; }
+.review-item { background: #f9f9f9; padding: 10px; border-radius: 6px; margin-bottom: 8px; border-left: 3px solid #667eea; }
+.review-header { display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 4px; }
+.review-text { font-size: 0.95rem; color: #555; }
+.popup-content h3 { font-size: 1.1rem; margin-bottom: 5px; }
+.popup-image { width: 100%; border-radius: 4px; overflow: hidden; margin-bottom: 8px; }
+.popup-image img { width: 100%; height: 100px; object-fit: cover; }
+.popup-btn.primary { background: #667eea; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 5px;}
+.popup-btn.secondary { background: #e2e8f0; color: #333; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 5px;}
+
+/* --- LEAFLET ROUTING & MODE BUTTONS (DESKTOP) --- */
+.route-mode-controls {
+    margin-right: 60px !important;
+    margin-top: 10px !important;
+    z-index: 1000 !important;
+}
+
+.leaflet-routing-container {
+    background-color: white !important; 
+    padding: 10px !important; 
+    border-radius: 8px !important; 
+    box-shadow: 0 4px 15px rgba(0,0,0,0.4) !important; 
+    max-height: 350px !important; 
+    overflow-y: auto !important; 
+    width: 300px !important; 
+    font-size: 0.9rem !important; 
+    
+    position: absolute !important;
+    top: 60px !important; 
+    right: 60px !important; 
+    z-index: 99999 !important; 
+    display: block; 
+    opacity: 1 !important;
+    transition: opacity 0.3s;
+}
+
+.leaflet-routing-container.hidden-instructions { display: none !important; }
+.leaflet-routing-alt { max-height: 300px; overflow-y: auto; }
+.leaflet-routing-collapse-btn { display: none; }
+.routing-header { display: none; }
+
+/* Destination Coordinates Popup */
+.dest-popup-container h4 { margin-bottom: 8px; font-size: 14px; color: #2d3748; }
+.dest-popup-inputs { display: flex; flex-direction: column; gap: 5px; }
+.dest-popup-inputs input { padding: 5px; border: 1px solid #cbd5e0; border-radius: 4px; font-size: 12px; }
+.dest-popup-btn { background: #667eea; color: white; border: none; padding: 5px; border-radius: 4px; cursor: pointer; margin-top: 5px; font-weight: bold; }
+.dest-popup-btn:hover { background: #5a67d8; }
+
+/* --- ADMIN PANEL --- */
+.clickable-card { cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; position: relative; }
+.clickable-card:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); border-color: #667eea; }
+.card-hint { font-size: 0.75rem; color: #a0aec0; margin-top: 5px; }
+.admin-list-container { max-height: 250px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 6px; background: #f9f9f9; }
+.admin-list-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 15px; border-bottom: 1px solid #eee; background: white; }
+.admin-list-item:hover { background: #f0f4f8; }
+.btn-sm-danger { padding: 5px 10px; background: #e53e3e; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
+.btn-sm-danger:hover { background: #c53030; }
+
+/* --- CHATBOT --- */
+.chat-toggle-btn { position: fixed; bottom: 20px; right: 20px; width: 60px; height: 60px; background: #667eea; border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; font-size: 28px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); cursor: pointer; z-index: 3000; transition: transform 0.3s, background 0.3s; }
+.chat-toggle-btn:hover { transform: scale(1.1); background: #5a67d8; }
+.chat-window { position: fixed; bottom: 90px; right: 20px; width: 350px; height: 450px; background: white; border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.2); display: flex; flex-direction: column; z-index: 3000; overflow: hidden; transform: translateY(20px); opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
+.chat-window.open { transform: translateY(0); opacity: 1; pointer-events: all; }
+.chat-header { background: #667eea; color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(0,0,0,0.1); }
+.chat-title { font-weight: bold; font-size: 1.1rem; display: flex; align-items: center; gap: 8px; }
+.chat-close-btn { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; }
+.chat-messages { flex: 1; padding: 15px; overflow-y: auto; background: #f7fafc; display: flex; flex-direction: column; gap: 10px; }
+.message-bubble { max-width: 80%; padding: 10px 14px; border-radius: 15px; font-size: 0.95rem; line-height: 1.4; word-wrap: break-word; animation: fadeIn 0.2s; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+.bot-msg { align-self: flex-start; background: #e2e8f0; color: #2d3748; border-bottom-left-radius: 2px; }
+.user-msg { align-self: flex-end; background: #667eea; color: white; border-bottom-right-radius: 2px; }
+.chat-input-area { padding: 10px; border-top: 1px solid #e2e8f0; background: white; display: flex; gap: 10px; }
+.chat-input-area input { flex: 1; padding: 10px; border: 1px solid #cbd5e0; border-radius: 20px; outline: none; }
+.chat-input-area button { width: 40px; height: 40px; background: #667eea; color: white; border: none; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
+.chat-input-area button:hover { background: #5a67d8; }
+
+/* --- RESPONSIVE MEDIA QUERIES (MOBILE) --- */
+@media (max-width: 768px) { 
+    /* 1. Header: Compact Row Layout */
+    .header { 
+        flex-direction: row; 
+        flex-wrap: wrap; 
+        padding: 5px 10px; 
+        text-align: left; 
         gap: 5px;
-    }
+        min-height: 50px;
+    } 
+    .logo { margin-right: auto; }
+    .logo h1 { display: none; } /* Hide text to save space */
+    .logo i { font-size: 1.5rem; }
     
-    /* 2. Logo Adjustments */
-    .logo { gap: 0.5rem; flex: 1; } /* Takes available space */
-    .logo i { font-size: 1.4rem; }
-    .logo-text h1 { font-size: 1rem; line-height: 1.1; }
-    .logo-text small { font-size: 0.7rem; color: rgba(255,255,255,0.8); }
+    .auth-section { 
+        order: 2; 
+        width: auto; 
+        gap: 5px;
+        font-size: 0.8rem;
+    } 
+    .auth-section button { padding: 0.3rem 0.6rem; font-size: 0.8rem; }
 
-    /* 3. Button Adjustments for Mobile */
-    .auth-section { margin-left: auto; }
-    .btn-secondary-light, .btn-primary, .btn-warning {
-        padding: 0.4rem 0.8rem;
-        font-size: 0.75rem; /* Smaller text */
-    }
-    .desktop-only { display: none; } /* Hide "Hi User" */
-    .btn-label { display: none; } /* Hide "Add Shop" text, show only Icon */
-    
-    /* 4. Search Bar: Move to next line */
-    .search-bar {
-        order: 3; /* Push to bottom */
-        width: 100%;
-        margin: 5px 0 0 0;
-        max-width: none;
-    }
+    .search-bar { 
+        order: 3; 
+        width: 100%; 
+        margin: 2px 0; 
+        max-width: none; 
+    } 
     .search-bar input { padding: 0.5rem; }
-    .search-bar button { padding: 0.5rem; }
+    .search-bar button { padding: 0.5rem 1rem; }
 
-    /* 5. Main Content Layout (Remove flex) */
-    .main-content { display: block; height: calc(100vh - 110px); } /* Adjust for header height */
+    .user-actions { display: none; } /* Hide 'Add Shop' on mobile to save space */
+    
+    /* 2. Layout: Bottom Sheet for Filters */
+    .main-content { 
+        display: block; /* Disable flex to allow absolute positioning */
+        height: calc(100vh - 100px);
+        position: relative; 
+    } 
 
-    /* 6. Map: Full Screen background */
-    .map-container {
+    .map-container { 
         width: 100%;
-        height: 100%;
+        height: 100%; /* Map takes full background */
         position: absolute;
         top: 0; left: 0;
         z-index: 1;
-    }
-
-    /* 7. Bottom Window (Filters) - Movable */
-    .sidebar {
-        position: fixed;
-        bottom: 0;
+    } 
+    
+    .sidebar { 
+        width: 100%; 
+        height: auto; 
+        max-height: 85vh; /* Allow it to grow, but not full screen */
+        position: absolute;
+        bottom: 0; 
         left: 0;
-        width: 100%;
+        z-index: 2000; /* Above map */
         background: white;
-        z-index: 2000;
-        border-radius: 20px 20px 0 0;
-        box-shadow: 0 -5px 15px rgba(0,0,0,0.2);
-        
-        /* TRANSITION LOGIC */
-        height: 150px; /* Default: Peeking */
-        transition: height 0.4s cubic-bezier(0.25, 1, 0.5, 1);
-        padding-top: 0; /* Handle takes top space */
-        overflow: hidden; /* Hide content when small */
+        border-radius: 20px 20px 0 0; /* Rounded top */
+        box-shadow: 0 -5px 15px rgba(0,0,0,0.15);
+        transform: translateY(calc(100% - 40px)); /* Hide content, show only handle */
+        transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+        padding: 0 1.5rem 1.5rem 1.5rem;
     }
 
-    /* Expanded state */
     .sidebar.expanded {
-        height: 70vh; /* Slides Up */
-        overflow-y: auto;
+        transform: translateY(0);
     }
 
-    /* 8. The "Handle" to Slide Up/Down */
-    .mobile-handle {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 30px;
-        background: #f8f9fa; /* Light grey handle area */
+    /* Handle for dragging/clicking */
+    .mobile-sidebar-handle {
+        display: block;
+        width: 100%;
+        height: 40px;
+        position: relative;
         cursor: pointer;
-        border-bottom: 1px solid #eee;
-        position: sticky; /* Sticks to top of sidebar */
-        top: 0;
-        z-index: 10;
+        background: white;
+        border-radius: 20px 20px 0 0;
     }
-    .handle-bar {
+    .mobile-sidebar-handle::after {
+        content: '';
+        position: absolute;
+        top: 15px;
+        left: 50%;
+        transform: translateX(-50%);
         width: 50px;
         height: 5px;
         background: #cbd5e0;
         border-radius: 3px;
     }
     
-    /* Routing Box Mobile */
-    .leaflet-routing-container {
-        width: 90% !important;
-        top: 10px !important;
-        right: 5% !important;
-        left: 5% !important;
+    /* ROUTING CONTROLS ON MOBILE */
+    .route-mode-controls {
+        margin-right: 50px !important; 
+        margin-top: 5px !important;
     }
+
+    .leaflet-routing-container { 
+        width: 90% !important; 
+        max-height: 150px !important; 
+        font-size: 0.8rem; 
+        top: 60px !important; 
+        right: 5% !important; 
+        left: 5% !important; 
+        z-index: 100000 !important;
+    }
+
+    /* Modal Adjustments */
+    .modal-content { width: 95%; top: 5%; max-height: 85vh; }
+    .small-modal { top: 10%; }
+    .chat-window { width: 90%; right: 5%; bottom: 85px; } 
     
-    /* Adjust internal padding of filters so they don't hide behind handle */
-    .filters { padding: 1rem; }
+    input, select, button { min-height: 40px; font-size: 16px; }
 }

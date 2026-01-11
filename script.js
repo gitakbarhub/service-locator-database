@@ -96,15 +96,29 @@ async function register(username, password, role, question, answer) {
 // --- INTERFACE LOGIC ---
 
 function initializeMobileSidebar() {
-    // Inject the handle HTML dynamically
+    // Inject the handle HTML dynamically with an Arrow Symbol
     const sidebar = document.querySelector('.sidebar');
     const handle = document.createElement('div');
     handle.className = 'mobile-sidebar-handle';
+    
+    // CHANGED: Added a chevron-up icon for the "small symbol" requirement
+    handle.innerHTML = '<i class="fas fa-chevron-up"></i>';
+    
     sidebar.insertBefore(handle, sidebar.firstChild);
 
     // Toggle logic
     handle.addEventListener('click', () => {
         sidebar.classList.toggle('expanded');
+        
+        // Toggle the icon direction based on state
+        const icon = handle.querySelector('i');
+        if (sidebar.classList.contains('expanded')) {
+            icon.classList.remove('fa-chevron-up');
+            icon.classList.add('fa-chevron-down');
+        } else {
+            icon.classList.remove('fa-chevron-down');
+            icon.classList.add('fa-chevron-up');
+        }
     });
 }
 

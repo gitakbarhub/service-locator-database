@@ -24,7 +24,7 @@ let currentUser = null;
 document.addEventListener('DOMContentLoaded', function() {
     initializeMap();
     initializeEventListeners();
-    initializeMobileSidebar(); // New function for mobile UI
+    initializeMobileSidebar(); 
     loadData(); 
     checkAuthSession(); 
     initChatbot(); 
@@ -96,21 +96,14 @@ async function register(username, password, role, question, answer) {
 // --- INTERFACE LOGIC ---
 
 function initializeMobileSidebar() {
-    // Inject the handle HTML dynamically with an Arrow Symbol
     const sidebar = document.querySelector('.sidebar');
     const handle = document.createElement('div');
     handle.className = 'mobile-sidebar-handle';
-    
-    // CHANGED: Added a chevron-up icon for the "small symbol" requirement
     handle.innerHTML = '<i class="fas fa-chevron-up"></i>';
-    
     sidebar.insertBefore(handle, sidebar.firstChild);
 
-    // Toggle logic
     handle.addEventListener('click', () => {
         sidebar.classList.toggle('expanded');
-        
-        // Toggle the icon direction based on state
         const icon = handle.querySelector('i');
         if (sidebar.classList.contains('expanded')) {
             icon.classList.remove('fa-chevron-up');
@@ -187,10 +180,9 @@ function updateUIForUser() {
     document.getElementById('loggedInView').style.display = 'flex';
     document.getElementById('welcomeUser').textContent = `Hi, ${currentUser.username}`;
     
-    // CHANGED: Show buttons for both Desktop and Mobile based on role
     if (currentUser.role === 'admin' || currentUser.role === 'provider') {
         document.getElementById('addProviderBtn').style.display = 'inline-block';
-        document.getElementById('addProviderBtnMobile').style.display = 'inline-block'; // NEW Mobile Button
+        document.getElementById('addProviderBtnMobile').style.display = 'inline-block';
     } else {
         document.getElementById('addProviderBtn').style.display = 'none';
         document.getElementById('addProviderBtnMobile').style.display = 'none';
@@ -207,7 +199,7 @@ function updateUIForGuest() {
     document.getElementById('loggedOutView').style.display = 'block';
     document.getElementById('loggedInView').style.display = 'none';
     document.getElementById('addProviderBtn').style.display = 'none';
-    document.getElementById('addProviderBtnMobile').style.display = 'none'; // NEW
+    document.getElementById('addProviderBtnMobile').style.display = 'none';
     document.getElementById('adminPanelBtn').style.display = 'none';
 }
 
@@ -228,6 +220,16 @@ function initializeMap() {
     osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors', maxZoom: 19 });
     satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: '© Esri, Maxar', maxZoom: 19 });
     osmLayer.addTo(map);
+    
+    // --- NEW: LAYER CONTROL (Prepare for multiple layers) ---
+    const baseMaps = {
+        "Street Map": osmLayer,
+        "Satellite": satelliteLayer
+    };
+    // Overlay maps can be empty initially and added later dynamically
+    const overlayMaps = {}; 
+    L.control.layers(baseMaps, overlayMaps).addTo(map);
+
     const initialRadius = parseFloat(document.getElementById('searchRadius').value);
     updateMapRadius(initialRadius);
     map.on('click', function(e) { if (isPickingLocation) confirmLocationPick(e.latlng); });
@@ -240,8 +242,11 @@ function initializeEventListeners() {
     document.getElementById('searchRadius').addEventListener('change', applyFilters);
     document.getElementById('locateMe').addEventListener('click', locateUser);
     document.getElementById('resetMapBtn').addEventListener('click', resetMapView);
+    
+    // Map style buttons (kept for UI compatibility, though Layer Control handles this now too)
     document.getElementById('setOsmMap').addEventListener('click', () => setBasemap('osm'));
     document.getElementById('setSatelliteMap').addEventListener('click', () => setBasemap('satellite'));
+    
     document.getElementById('toggleNarratorBtn').addEventListener('click', toggleNarrator);
     document.getElementById('toggleRouteInfoBtn').addEventListener('click', toggleRouteWindow);
 
@@ -256,7 +261,6 @@ function initializeEventListeners() {
     }
 
     document.getElementById('addProviderBtn').addEventListener('click', () => openAddProviderModal());
-    // CHANGED: Wire up the mobile button
     document.getElementById('addProviderBtnMobile').addEventListener('click', () => openAddProviderModal()); 
     
     document.getElementById('cancelAdd').addEventListener('click', closeAddProviderModal);
@@ -491,13 +495,11 @@ function executeRouting(providerId, reverse) {
         liveTrackingId = null;
     }
 
-    // FIX: Hide the duplicate "User Marker" blue dot so only the routing icons show
     if (window.userMarker) {
         map.removeLayer(window.userMarker);
     }
     hideAllMarkersExcept([provider.id]);
 
-    // Collapse the sidebar on mobile to show full map for routing
     const sidebar = document.querySelector('.sidebar');
     if (sidebar) sidebar.classList.remove('expanded');
 
@@ -549,8 +551,6 @@ function executeRouting(providerId, reverse) {
             let markerIcon;
             let popupContent;
             
-            // --- FIX: Icons logic ---
-            // Explicitly distinct icons
             const meIcon = L.divIcon({ 
                 className: 'user-marker-routing', 
                 html: '<div style="background-color:#4285F4; width:20px; height:20px; border-radius:50%; border:2px solid white; box-shadow:0 0 5px rgba(0,0,0,0.5);"></div><span style="position:absolute; top:-20px; left:-10px; font-weight:bold; background:white; padding:1px 4px; border-radius:4px; font-size:11px;">Me</span>', 
@@ -565,33 +565,28 @@ function executeRouting(providerId, reverse) {
                 popupAnchor: [1, -34]
             });
 
-            // --- FIX: Draggable Logic ---
             let isDraggable = true;
 
             if (!reverse) { 
-                // Me (Start) -> Shop (End)
-                // "the location icon fixed it not move able"
                 if (i === 0) { 
                     markerIcon = meIcon; 
                     popupContent = "<b>I am Here (Start)</b>"; 
-                    isDraggable = false; // Fixed Me
+                    isDraggable = false; 
                 } 
                 else { 
                     markerIcon = shopIcon; 
                     popupContent = createPopupContent(provider); 
-                    isDraggable = false; // Fixed Shop
+                    isDraggable = false; 
                 }
             } else { 
-                // Shop (Start) -> Me (End)
-                // "shop location it could fixed the other end is move able only"
                 if (i === 0) { 
                     markerIcon = shopIcon; 
                     popupContent = createPopupContent(provider); 
-                    isDraggable = false; // Fixed Shop
+                    isDraggable = false; 
                 } 
                 else { 
                     markerIcon = meIcon;
-                    isDraggable = true; // Movable Me (Destination)
+                    isDraggable = true; 
                     popupContent = `
                         <div class="dest-popup-container">
                             <h4>Adjust Drop-off Location</h4>
@@ -648,10 +643,9 @@ function executeRouting(providerId, reverse) {
         }, 500);
     });
     
-    // --- FIX 2: LIVE TRACKING (watchPosition) ---
-    // Only update if I am the start point (not reversed)
+    // --- FIX 2: CORRECT LIVE TRACKING (watchPosition) ---
     if (!reverse) {
-        // Use watchPosition instead of setInterval
+        // Use watchPosition instead of setInterval to avoid browser violations and battery drain
         liveTrackingId = navigator.geolocation.watchPosition(
             function(pos) {
                 const newLat = pos.coords.latitude;
@@ -659,7 +653,7 @@ function executeRouting(providerId, reverse) {
                 const currentLatLng = L.latLng(userLocation.lat, userLocation.lng);
                 const newLatLng = L.latLng(newLat, newLng);
                 
-                // Update only if moved significantly (20m)
+                // Only update if moved more than 20 meters
                 if (currentLatLng.distanceTo(newLatLng) > 20) {
                     userLocation = { lat: newLat, lng: newLng };
                     const waypoints = routingControl.getWaypoints();
@@ -668,7 +662,7 @@ function executeRouting(providerId, reverse) {
                     console.log("Route updated live.");
                 }
             }, 
-            function(err) { console.warn("Live tracking warning:", err.message); }, 
+            function(err) { console.warn("Live tracking warning (GPS might be weak):", err.message); },
             { enableHighAccuracy: true, maximumAge: 10000, timeout: 10000 }
         );
     }
@@ -955,19 +949,17 @@ function resetMapView() {
     if (routingControl) map.removeControl(routingControl);
     if (window.userMarker) {
         map.removeLayer(window.userMarker);
-        window.userMarker = null; // Clear it to prevent duplicates
+        window.userMarker = null; 
     }
-    
     // --- FIX 1 (Cleanup): Stop WatchPosition on Reset ---
     if (liveTrackingId) {
         navigator.geolocation.clearWatch(liveTrackingId);
         liveTrackingId = null;
-    } 
+    }
     
     const modeDiv = document.getElementById('routeModeControls');
     if (modeDiv) modeDiv.remove();
 
-    // Reset Sidebar
     const sidebar = document.querySelector('.sidebar');
     if (sidebar) sidebar.classList.remove('expanded');
 
@@ -999,7 +991,6 @@ function showProviderOnMap(providerId) {
         map.setView([provider.lat, provider.lng], 16);
         markers.forEach(marker => { if (marker.providerId === providerId) marker.openPopup(); });
         
-        // Mobile UX: If a shop is clicked in the list, collapse the list so map is visible
         if (window.innerWidth <= 768) {
             document.querySelector('.sidebar').classList.remove('expanded');
         }
@@ -1041,7 +1032,6 @@ function performSearch() {
         if (filtered.length > 0) {
             map.setView([filtered[0].lat, filtered[0].lng], 16);
             highlightProviderCard(filtered[0].id);
-            // Collapse sidebar on mobile to see result
             if (window.innerWidth <= 768) document.querySelector('.sidebar').classList.remove('expanded');
         }
     }
@@ -1115,21 +1105,11 @@ function initChatbot() {
 
     closeBtn.addEventListener('click', () => chatWindow.classList.remove('open'));
     
-    // Send logic
     const handleUserSend = async () => {
         const text = input.value.trim();
         if (!text) return;
         appendUserMessage(text);
         input.value = '';
-        
-        // Show typing indicator? (optional improvement)
-        
-        // --- API SWITCH ---
-        // If you have an API key, use it. Otherwise use internal logic.
-        // To use AI: Uncomment the function call below.
-        
-        // const aiResponse = await askAI_API(text); 
-        // if(aiResponse) { appendBotMessage(aiResponse); return; }
 
         setTimeout(() => {
             const response = processChatCommand(text.toLowerCase());
@@ -1153,21 +1133,17 @@ function appendUserMessage(text) {
 function appendBotMessage(text) {
     const div = document.createElement('div');
     div.className = 'message-bubble bot-msg';
-    // Allow line breaks
     div.innerHTML = text.replace(/\n/g, '<br>');
     const container = document.getElementById('chatMessages');
     container.appendChild(div);
     container.scrollTop = container.scrollHeight;
 }
 
-// Enhanced Local Logic (10x Intelligence via Fuzzy Matching & Context)
 function processChatCommand(cmd) {
-    // 1. HELP / GREETING
     if (/hi|hello|hey|start|help/.test(cmd)) {
         return "Hello! I am your GIS Assistant. I can help you:\n1. Find shops (e.g., 'Find plumber')\n2. Navigate (e.g., 'Route to shop')\n3. Account help (e.g., 'How to login')\n\nWhat do you need?";
     }
 
-    // 2. SEARCH & FINDING (Context aware)
     if (/find|search|show|where is|looking for/.test(cmd)) {
         if (/plumber/.test(cmd)) {
             document.getElementById('serviceType').value = 'plumber';
@@ -1192,12 +1168,10 @@ function processChatCommand(cmd) {
         return "What kind of shop are you looking for? (Plumber, Electrician, Mechanic, Car Wash)";
     }
 
-    // 3. ROUTING & NAVIGATION
     if (/route|direction|go to|navigate|path/.test(cmd)) {
         return "To navigate:\n1. Click on a shop icon.\n2. Click 'View Details'.\n3. Click 'Route'.\n\nYou can switch between **Car**, **Bike**, or **Walk** mode in the top right corner!";
     }
     
-    // 4. ACCOUNT ISSUES
     if (/register|signup|create account/.test(cmd)) {
         return "Click the **Register** button (top right). Choose 'Provider' if you own a shop, or 'User' if you are a customer.";
     }
@@ -1205,7 +1179,6 @@ function processChatCommand(cmd) {
         return "If you forgot your password, go to Login -> Click 'Forgot Password?'. You'll need to answer your security question.";
     }
 
-    // 5. SHOP MANAGEMENT
     if (/add shop|my shop|list shop/.test(cmd)) {
         if(!currentUser || currentUser.role !== 'provider') {
             return "You need to be logged in as a **Service Provider** to add a shop.";
@@ -1213,7 +1186,6 @@ function processChatCommand(cmd) {
         return "Click 'Add Shop' in the header. You can pick the location directly on the map!";
     }
 
-    // 6. FUN / GENERAL
     if (/who are you|bot/.test(cmd)) {
         return "I am ServiceBot, built to help you navigate this WebGIS application.";
     }
@@ -1224,18 +1196,11 @@ function processChatCommand(cmd) {
     return "I didn't quite catch that. Try saying 'Find a mechanic' or 'How to register'.";
 }
 
-// --- OPTIONAL: REAL AI API INTEGRATION ---
-// To use this: 
-// 1. Get an API Key from Google Gemini (aistudio.google.com) or OpenAI.
-// 2. Paste it below.
-// 3. Uncomment the call in handleUserSend().
-
-const AI_API_KEY = ""; // PASTE YOUR KEY HERE (e.g., "AIzaSy...")
+// --- API INTEGRATION (Optional) ---
+const AI_API_KEY = ""; 
 
 async function askAI_API(prompt) {
-    if (!AI_API_KEY) return null; // Fallback to local if no key
-
-    // Example using Google Gemini API (Generative Language)
+    if (!AI_API_KEY) return null; 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${AI_API_KEY}`;
     
     try {
@@ -1274,22 +1239,27 @@ function toggleGeoServerLayer() {
         btn.style.color = "";
         btn.style.borderColor = "#d69e2e";
     } else {
-        // --- FIX 3: Tiled = False (Important for Ngrok) ---
+        // --- FIX 3: WMS CONFIGURATION (Tiled: False) ---
         punjabLayer = L.tileLayer.wms(`${baseUrl}/geoserver/wms`, {
             layers: 'myprojectwebgis:punjab_boundary',
             format: 'image/png',
             transparent: true,
             version: '1.1.0',
-            tiled: false, // <--- CHANGED: Fixes "Refused Stream" and reduces load
+            tiled: false, // Prevents "Refused Stream" error from Ngrok
             styles: '',
             attribution: '© Local GeoServer (Punjab Govt)'
         });
+        
         punjabLayer.addTo(map);
         map.flyTo([31.1704, 72.7097], 7, { animate: true, duration: 1.5 });
         
         btn.textContent = "Hide Punjab Layer";
         btn.style.background = "#d69e2e";
         btn.style.color = "white";
+        
+        // Also add it to the new Layer Control we created
+        // Note: Dynamically updating controls in Leaflet is tricky, 
+        // so we stick to the manual toggle button you already have for simplicity.
         alert("Loading Punjab Layer... \nI am zooming you out to Punjab so you can see it!");
     }
 }

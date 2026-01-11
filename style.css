@@ -85,6 +85,9 @@ body {
 .filter-group label { display: block; margin-bottom: 0.5rem; font-weight: 500; color: #4a5568; }
 .filter-group select, .filter-group input { width: 100%; padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 1rem; }
 
+/* Sidebar Toggle Handle (Mobile Only) */
+.mobile-sidebar-handle { display: none; }
+
 /* General Button Styles */
 .btn-primary { width: 100%; padding: 0.75rem; background: #667eea; color: white; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.3s; }
 .btn-primary:hover { background: #5a67d8; }
@@ -164,14 +167,12 @@ body {
 .popup-btn.secondary { background: #e2e8f0; color: #333; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 5px;}
 
 /* --- LEAFLET ROUTING & MODE BUTTONS (DESKTOP) --- */
-/* The container for the Bike/Car buttons */
 .route-mode-controls {
-    margin-right: 60px !important; /* Move left of Reset button */
+    margin-right: 60px !important;
     margin-top: 10px !important;
     z-index: 1000 !important;
 }
 
-/* The white instruction box */
 .leaflet-routing-container {
     background-color: white !important; 
     padding: 10px !important; 
@@ -182,10 +183,9 @@ body {
     width: 300px !important; 
     font-size: 0.9rem !important; 
     
-    /* FIX: Position it directly below the mode buttons */
     position: absolute !important;
-    top: 60px !important;  /* Push down just enough to clear buttons */
-    right: 60px !important; /* Align with the buttons */
+    top: 60px !important; 
+    right: 60px !important; 
     z-index: 99999 !important; 
     display: block; 
     opacity: 1 !important;
@@ -234,39 +234,108 @@ body {
 
 /* --- RESPONSIVE MEDIA QUERIES (MOBILE) --- */
 @media (max-width: 768px) { 
-    /* Compact Header */
-    .header { flex-direction: column; padding: 0.5rem; text-align: center; gap: 8px; } 
-    .logo h1 { font-size: 1.2rem; }
+    /* 1. Header: Compact Row Layout */
+    .header { 
+        flex-direction: row; 
+        flex-wrap: wrap; 
+        padding: 5px 10px; 
+        text-align: left; 
+        gap: 5px;
+        min-height: 50px;
+    } 
+    .logo { margin-right: auto; }
+    .logo h1 { display: none; } /* Hide text to save space */
+    .logo i { font-size: 1.5rem; }
     
-    /* Layout Adjustments */
-    .main-content { flex-direction: column-reverse; } 
-    .sidebar { width: 100%; height: 40vh; } 
-    .map-container { height: 60vh; } 
+    .auth-section { 
+        order: 2; 
+        width: auto; 
+        gap: 5px;
+        font-size: 0.8rem;
+    } 
+    .auth-section button { padding: 0.3rem 0.6rem; font-size: 0.8rem; }
+
+    .search-bar { 
+        order: 3; 
+        width: 100%; 
+        margin: 2px 0; 
+        max-width: none; 
+    } 
+    .search-bar input { padding: 0.5rem; }
+    .search-bar button { padding: 0.5rem 1rem; }
+
+    .user-actions { display: none; } /* Hide 'Add Shop' on mobile to save space */
     
-    /* Full Width Elements */
-    .search-bar { order: 2; width: 100%; margin: 5px 0; max-width: none; } 
-    .auth-section { order: 1; width: 100%; justify-content: flex-end; } 
-    .user-actions { order: 3; width: 100%; } 
-    .logo { width: 100%; justify-content: center; margin-bottom: 5px; } 
-    #addProviderBtn { width: 100%; }
+    /* 2. Layout: Bottom Sheet for Filters */
+    .main-content { 
+        display: block; /* Disable flex to allow absolute positioning */
+        height: calc(100vh - 100px);
+        position: relative; 
+    } 
+
+    .map-container { 
+        width: 100%;
+        height: 100%; /* Map takes full background */
+        position: absolute;
+        top: 0; left: 0;
+        z-index: 1;
+    } 
+    
+    .sidebar { 
+        width: 100%; 
+        height: auto; 
+        max-height: 85vh; /* Allow it to grow, but not full screen */
+        position: absolute;
+        bottom: 0; 
+        left: 0;
+        z-index: 2000; /* Above map */
+        background: white;
+        border-radius: 20px 20px 0 0; /* Rounded top */
+        box-shadow: 0 -5px 15px rgba(0,0,0,0.15);
+        transform: translateY(calc(100% - 40px)); /* Hide content, show only handle */
+        transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+        padding: 0 1.5rem 1.5rem 1.5rem;
+    }
+
+    .sidebar.expanded {
+        transform: translateY(0);
+    }
+
+    /* Handle for dragging/clicking */
+    .mobile-sidebar-handle {
+        display: block;
+        width: 100%;
+        height: 40px;
+        position: relative;
+        cursor: pointer;
+        background: white;
+        border-radius: 20px 20px 0 0;
+    }
+    .mobile-sidebar-handle::after {
+        content: '';
+        position: absolute;
+        top: 15px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 50px;
+        height: 5px;
+        background: #cbd5e0;
+        border-radius: 3px;
+    }
     
     /* ROUTING CONTROLS ON MOBILE */
-    /* 1. Mode Buttons (Walk/Bike/Car) */
     .route-mode-controls {
-        margin-right: 50px !important; /* Keep left of Reset button */
+        margin-right: 50px !important; 
         margin-top: 5px !important;
     }
 
-    /* 2. Instruction Window */
     .leaflet-routing-container { 
         width: 90% !important; 
-        max-height: 180px !important; 
+        max-height: 150px !important; 
         font-size: 0.8rem; 
-        
-        /* FIX: Position it cleanly below the mode buttons on mobile */
         top: 60px !important; 
         right: 5% !important; 
-        left: 5% !important; /* Center it */
+        left: 5% !important; 
         z-index: 100000 !important;
     }
 
@@ -275,6 +344,5 @@ body {
     .small-modal { top: 10%; }
     .chat-window { width: 90%; right: 5%; bottom: 85px; } 
     
-    /* Better Touch Targets */
-    input, select, button { min-height: 44px; font-size: 16px; }
+    input, select, button { min-height: 40px; font-size: 16px; }
 }

@@ -33,7 +33,7 @@ body {
     flex-shrink: 0; /* Prevent header from shrinking */
 }
 
-/* CHANGED: Logo Structure */
+/* Logo Structure */
 .logo { display: flex; align-items: center; gap: 0.8rem; }
 .logo i { font-size: 1.8rem; }
 .logo-text { display: flex; flex-direction: column; line-height: 1.1; }
@@ -67,6 +67,15 @@ body {
     transition: background 0.3s;
 }
 .btn-warning:hover { background: #d69e2e; }
+
+/* Custom class for mobile Add Shop button */
+.mobile-add-btn {
+    font-size: 0.8rem;
+    padding: 0.4rem 0.8rem;
+    white-space: nowrap;
+    border-radius: 20px;
+    margin-right: 5px;
+}
 
 .search-bar { order: 1; display: flex; flex: 1; max-width: 500px; min-width: 250px; margin: 0 20px; }
 .search-bar input { flex: 1; padding: 0.75rem 1rem; border: none; border-radius: 25px 0 0 25px; font-size: 1rem; outline: none; }
@@ -219,7 +228,7 @@ body {
 
 /* --- RESPONSIVE MEDIA QUERIES (MOBILE OPTIMIZATIONS) --- */
 
-/* NEW: Hide the mobile Add Shop button on desktop screens */
+/* Hide the mobile Add Shop button on desktop screens */
 @media (min-width: 769px) {
     #addProviderBtnMobile { display: none !important; }
 }
@@ -345,11 +354,16 @@ body {
         transform: rotate(180deg);
     }
     
-    /* Routing on Mobile */
+    /* CHANGED: Routing Window in Mobile - Moved Left and Made Bigger */
     .route-mode-controls { margin-right: 50px !important; margin-top: 5px !important; }
     .leaflet-routing-container { 
-        width: 90% !important; max-height: 150px !important; font-size: 0.8rem; 
-        top: 60px !important; right: 5% !important; left: 5% !important; z-index: 100000 !important;
+        width: 70% !important; /* Reduced width so it doesn't overlap right buttons */
+        max-height: 450px !important; /* Increased height significantly (3x bigger) */
+        font-size: 0.8rem; 
+        top: 60px !important; 
+        left: 10px !important; /* Anchored Left */
+        right: auto !important; /* Removed Right Anchor */
+        z-index: 100000 !important;
     }
 
     /* Modal Adjustments */

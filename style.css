@@ -343,17 +343,17 @@ body {
         transform: rotate(180deg);
     }
     
-    /* --- ROUTING WINDOW (UPDATED: BIGGER HEIGHT, SMALLER TEXT) --- */
+    /* --- ROUTING WINDOW (UPDATED TO MATCH YELLOW BOX) --- */
     .route-mode-controls { margin-right: 50px !important; margin-top: 5px !important; }
     
     .leaflet-routing-container { 
-        width: 65% !important; 
-        max-height: 85vh !important; /* HUGE: 85% of screen height */
-        font-size: 11px !important; /* SMALL: Approx 1.5x smaller than default */
+        width: 220px !important; /* Narrow width to match the box in your image */
+        max-height: 60vh !important; /* Approx 3x bigger, fills the yellow area */
+        font-size: 11px !important; /* Small text as requested */
         
         top: 70px !important; 
-        left: 5px !important; 
-        right: auto !important;
+        right: 60px !important; /* Positioned on the RIGHT, avoiding buttons */
+        left: auto !important; /* Reset left positioning */
         
         z-index: 100000 !important;
         overflow-y: auto !important;

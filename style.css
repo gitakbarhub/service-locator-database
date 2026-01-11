@@ -297,7 +297,7 @@ body {
         position: fixed; 
         bottom: 0; 
         left: 0;
-        z-index: 4000; /* Increased Z-Index so handle is always clickable */
+        z-index: 4000;
         background: white;
         border-radius: 20px 20px 0 0;
         box-shadow: 0 -5px 15px rgba(0,0,0,0.2);
@@ -311,31 +311,30 @@ body {
         transform: translateY(0);
     }
 
-    /* --- MOBILE SIDEBAR HANDLE (UPDATED) --- */
+    /* --- MOBILE SIDEBAR HANDLE (FIXED/STICKY) --- */
     .mobile-sidebar-handle {
         display: flex;
         justify-content: center;
         align-items: center;
         width: 100%;
         height: 40px; 
-        position: sticky; /* Sticky ensures it stays at top even if you scroll the list */
+        position: sticky; /* Keeps it at the top while scrolling */
         top: 0; 
         z-index: 5000;
         cursor: pointer;
-        background: #667eea; /* Theme Color Applied */
+        background: #667eea;
         border-radius: 20px 20px 0 0;
         margin-bottom: 5px;
-        margin-left: -1.5rem; /* Counteract sidebar padding */
-        width: calc(100% + 3rem); /* Full width including padding */
-        margin-top: -1.5rem; /* Pull it up to the very top */
+        margin-left: -1.5rem; 
+        width: calc(100% + 3rem); 
+        margin-top: -1.5rem; 
         box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
     
     .mobile-sidebar-handle::after { display: none; }
     
-    /* Arrow Symbol styling */
     .mobile-sidebar-handle i {
-        color: white; /* White arrow */
+        color: white; 
         font-size: 1.5rem;
         transition: transform 0.3s;
     }
@@ -344,16 +343,16 @@ body {
         transform: rotate(180deg);
     }
     
-    /* --- ROUTING WINDOW (UPDATED) --- */
+    /* --- ROUTING WINDOW (UPDATED: BIGGER HEIGHT, SMALLER TEXT) --- */
     .route-mode-controls { margin-right: 50px !important; margin-top: 5px !important; }
     
     .leaflet-routing-container { 
-        width: 65% !important; /* Slightly narrower to avoid hitting right-side buttons */
-        max-height: 75vh !important; /* 3 Times Bigger (75% of screen height) */
-        font-size: 0.9rem; /* Readable font size */
+        width: 65% !important; 
+        max-height: 85vh !important; /* HUGE: 85% of screen height */
+        font-size: 11px !important; /* SMALL: Approx 1.5x smaller than default */
         
-        top: 70px !important; /* Moved down to avoid header */
-        left: 5px !important; /* Moved left (close to edge) to avoid overlap */
+        top: 70px !important; 
+        left: 5px !important; 
         right: auto !important;
         
         z-index: 100000 !important;

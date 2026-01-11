@@ -30,11 +30,15 @@ body {
     flex-wrap: wrap;
     gap: 15px;
     z-index: 1100;
+    flex-shrink: 0; /* Prevent header from shrinking */
 }
 
-.logo { display: flex; align-items: center; gap: 0.5rem; }
+/* CHANGED: Logo Structure */
+.logo { display: flex; align-items: center; gap: 0.8rem; }
 .logo i { font-size: 1.8rem; }
-.logo h1 { font-size: 1.5rem; font-weight: 600; }
+.logo-text { display: flex; flex-direction: column; line-height: 1.1; }
+.logo h1 { font-size: 1.4rem; font-weight: 600; margin: 0; }
+.subtitle { font-size: 0.85rem; font-weight: 400; opacity: 0.9; color: #e2e8f0; }
 
 .auth-section { order: 2; display: flex; align-items: center; gap: 10px; }
 #welcomeUser { margin-right: 5px; font-weight: 500; font-size: 0.95rem; }
@@ -127,7 +131,6 @@ body {
 .modal-content { background-color: white; margin: 3% auto; padding: 0; border-radius: 12px; width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.2); animation: modalSlideIn 0.3s ease-out; position: fixed; top: 10%; left: 50%; transform: translateX(-50%); }
 @keyframes modalSlideIn { from { opacity: 0; top: 5%; } to { opacity: 1; top: 10%; } }
 
-/* Draggable Header Styling */
 .draggable-header { cursor: move; user-select: none; background: #f8f9fa; border-bottom: 1px solid #e2e8f0; border-radius: 12px 12px 0 0; }
 .draggable-header:active { cursor: grabbing; background: #edf2f7; }
 
@@ -138,7 +141,6 @@ body {
 .form-group { margin-bottom: 1.5rem; padding: 0 1.5rem; }
 .form-actions { display: flex; gap: 1rem; padding: 1.5rem; border-top: 1px solid #e2e8f0; }
 
-/* --- PASSWORD TOGGLE --- */
 .password-wrapper { position: relative; display: flex; align-items: center; }
 .password-wrapper input { width: 100%; padding-right: 35px; } 
 .toggle-password { position: absolute; right: 10px; cursor: pointer; color: #a0aec0; z-index: 10; }
@@ -167,37 +169,20 @@ body {
 .popup-btn.secondary { background: #e2e8f0; color: #333; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 5px;}
 
 /* --- LEAFLET ROUTING & MODE BUTTONS (DESKTOP) --- */
-.route-mode-controls {
-    margin-right: 60px !important;
-    margin-top: 10px !important;
-    z-index: 1000 !important;
-}
+.route-mode-controls { margin-right: 60px !important; margin-top: 10px !important; z-index: 1000 !important; }
 
 .leaflet-routing-container {
-    background-color: white !important; 
-    padding: 10px !important; 
-    border-radius: 8px !important; 
-    box-shadow: 0 4px 15px rgba(0,0,0,0.4) !important; 
-    max-height: 350px !important; 
-    overflow-y: auto !important; 
-    width: 300px !important; 
-    font-size: 0.9rem !important; 
-    
-    position: absolute !important;
-    top: 60px !important; 
-    right: 60px !important; 
-    z-index: 99999 !important; 
-    display: block; 
-    opacity: 1 !important;
-    transition: opacity 0.3s;
+    background-color: white !important; padding: 10px !important; border-radius: 8px !important; 
+    box-shadow: 0 4px 15px rgba(0,0,0,0.4) !important; max-height: 350px !important; overflow-y: auto !important; 
+    width: 300px !important; font-size: 0.9rem !important; position: absolute !important;
+    top: 60px !important; right: 60px !important; z-index: 99999 !important; 
+    display: block; opacity: 1 !important; transition: opacity 0.3s;
 }
 
 .leaflet-routing-container.hidden-instructions { display: none !important; }
 .leaflet-routing-alt { max-height: 300px; overflow-y: auto; }
 .leaflet-routing-collapse-btn { display: none; }
 .routing-header { display: none; }
-
-/* Destination Coordinates Popup */
 .dest-popup-container h4 { margin-bottom: 8px; font-size: 14px; color: #2d3748; }
 .dest-popup-inputs { display: flex; flex-direction: column; gap: 5px; }
 .dest-popup-inputs input { padding: 5px; border: 1px solid #cbd5e0; border-radius: 4px; font-size: 12px; }
@@ -232,21 +217,41 @@ body {
 .chat-input-area button { width: 40px; height: 40px; background: #667eea; color: white; border: none; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
 .chat-input-area button:hover { background: #5a67d8; }
 
-/* --- RESPONSIVE MEDIA QUERIES (MOBILE) --- */
+/* --- RESPONSIVE MEDIA QUERIES (MOBILE OPTIMIZATIONS) --- */
 @media (max-width: 768px) { 
-    /* 1. Header: Compact Row Layout */
+    /* 1. Header: Very Compact Row Layout */
     .header { 
         flex-direction: row; 
         flex-wrap: wrap; 
-        padding: 5px 10px; 
+        padding: 6px 10px; /* Reduced padding */
         text-align: left; 
-        gap: 5px;
-        min-height: 50px;
+        gap: 8px;
+        min-height: auto;
+        align-items: flex-start;
     } 
-    .logo { margin-right: auto; }
-    .logo h1 { display: none; } /* Hide text to save space */
-    .logo i { font-size: 1.5rem; }
     
+    .logo { 
+        margin-right: auto; 
+        gap: 6px; 
+        flex: 1 1 auto; /* Allow logo to take space */
+    }
+    
+    .logo i { font-size: 1.4rem; color: white; }
+    
+    /* CHANGED: Make Logo text visible and compact on mobile */
+    .logo-text { display: flex; flex-direction: column; }
+    .logo h1 { 
+        display: block; /* Visible now */
+        font-size: 1rem; 
+        line-height: 1.1;
+    } 
+    .subtitle {
+        display: block;
+        font-size: 0.7rem; /* Small subtitle */
+        line-height: 1.1;
+        opacity: 0.9;
+    }
+
     .auth-section { 
         order: 2; 
         width: auto; 
@@ -254,45 +259,51 @@ body {
         font-size: 0.8rem;
     } 
     .auth-section button { padding: 0.3rem 0.6rem; font-size: 0.8rem; }
-
+    
+    /* Compact Search Bar */
     .search-bar { 
         order: 3; 
         width: 100%; 
-        margin: 2px 0; 
+        margin: 2px 0 0 0; /* Tight margin */
         max-width: none; 
+        height: 38px; /* Fixed height to save space */
     } 
-    .search-bar input { padding: 0.5rem; }
-    .search-bar button { padding: 0.5rem 1rem; }
+    .search-bar input { padding: 0.4rem 0.8rem; font-size: 0.9rem; }
+    .search-bar button { padding: 0.4rem 1rem; }
 
-    .user-actions { display: none; } /* Hide 'Add Shop' on mobile to save space */
+    .user-actions { display: none; } 
     
-    /* 2. Layout: Bottom Sheet for Filters */
+    /* 2. Layout: Map takes more space */
     .main-content { 
-        display: block; /* Disable flex to allow absolute positioning */
-        height: calc(100vh - 100px);
+        display: block;
+        height: auto; /* Let flex container handle it */
+        flex: 1; /* Grow to fill rest of screen */
         position: relative; 
     } 
 
     .map-container { 
         width: 100%;
-        height: 100%; /* Map takes full background */
+        height: 100%; 
         position: absolute;
         top: 0; left: 0;
         z-index: 1;
     } 
     
+    /* CHANGED: Sidebar Fixed at Bottom with clear Visibility */
     .sidebar { 
         width: 100%; 
         height: auto; 
-        max-height: 85vh; /* Allow it to grow, but not full screen */
-        position: absolute;
+        max-height: 80vh; 
+        position: fixed; /* Fixed to viewport bottom */
         bottom: 0; 
         left: 0;
-        z-index: 2000; /* Above map */
+        z-index: 2000;
         background: white;
-        border-radius: 20px 20px 0 0; /* Rounded top */
-        box-shadow: 0 -5px 15px rgba(0,0,0,0.15);
-        transform: translateY(calc(100% - 40px)); /* Hide content, show only handle */
+        border-radius: 20px 20px 0 0;
+        box-shadow: 0 -5px 15px rgba(0,0,0,0.2);
+        
+        /* Adjusted transform to show handle clearly */
+        transform: translateY(calc(100% - 35px)); 
         transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
         padding: 0 1.5rem 1.5rem 1.5rem;
     }
@@ -301,42 +312,41 @@ body {
         transform: translateY(0);
     }
 
-    /* Handle for dragging/clicking */
+    /* CHANGED: Handle Styling with Symbol */
     .mobile-sidebar-handle {
-        display: block;
+        display: flex;
+        justify-content: center;
+        align-items: center;
         width: 100%;
-        height: 40px;
+        height: 35px; /* Match calculations */
         position: relative;
         cursor: pointer;
         background: white;
         border-radius: 20px 20px 0 0;
-    }
-    .mobile-sidebar-handle::after {
-        content: '';
-        position: absolute;
-        top: 15px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 50px;
-        height: 5px;
-        background: #cbd5e0;
-        border-radius: 3px;
+        margin-bottom: 5px;
     }
     
-    /* ROUTING CONTROLS ON MOBILE */
-    .route-mode-controls {
-        margin-right: 50px !important; 
-        margin-top: 5px !important;
+    /* The visual bar */
+    .mobile-sidebar-handle::after {
+        display: none; /* Remove old bar style */
     }
-
+    
+    /* New Arrow Symbol styling controlled by JS via class, or default here */
+    .mobile-sidebar-handle i {
+        color: #667eea;
+        font-size: 1.2rem;
+        transition: transform 0.3s;
+    }
+    
+    .sidebar.expanded .mobile-sidebar-handle i {
+        transform: rotate(180deg);
+    }
+    
+    /* Routing on Mobile */
+    .route-mode-controls { margin-right: 50px !important; margin-top: 5px !important; }
     .leaflet-routing-container { 
-        width: 90% !important; 
-        max-height: 150px !important; 
-        font-size: 0.8rem; 
-        top: 60px !important; 
-        right: 5% !important; 
-        left: 5% !important; 
-        z-index: 100000 !important;
+        width: 90% !important; max-height: 150px !important; font-size: 0.8rem; 
+        top: 60px !important; right: 5% !important; left: 5% !important; z-index: 100000 !important;
     }
 
     /* Modal Adjustments */

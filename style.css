@@ -349,8 +349,8 @@ body {
     
     .leaflet-routing-container { 
         width: auto !important; /* Allow growing up to max-width */
-        max-width: 650px !important; 
-        max-height: 262vh !important;  /* EXTREMELY TALL HEIGHT AS REQUESTED */
+        max-width: 650px !important; /* SPECIFIED BY USER */
+        max-height: 80vh !important;  /* Very Tall / Big */
         font-size: 11px !important; 
         
         /* Positioning */

@@ -344,18 +344,18 @@ body {
     }
     
     /* --- ROUTING WINDOW (VERTICAL RECTANGLE, RIGHT ALIGNED) --- */
-    /* This section creates the tall, narrow box from your drawing */
+    /* UPDATED ACCORDING TO USER REQUIREMENTS */
     .route-mode-controls { margin-right: 50px !important; margin-top: 5px !important; }
     
     .leaflet-routing-container { 
-        /* Dimensions: Narrow width, Taller height (vertical rectangle) */
-        width: 180px !important; 
-        max-height: 75vh !important;  /* INCREASED LENGTH (HEIGHT) FOR MOBILE */
-        font-size: 11px !important; /* Small text */
+        width: auto !important; /* Allow growing up to max-width */
+        max-width: 650px !important; 
+        max-height: 262vh !important;  /* EXTREMELY TALL HEIGHT AS REQUESTED */
+        font-size: 11px !important; 
         
-        /* Positioning: Below top buttons, Left of side buttons */
+        /* Positioning */
         top: 65px !important; 
-        right: 60px !important; /* Anchored Right, clearing the buttons */
+        right: 60px !important; 
         left: auto !important; 
         
         z-index: 100000 !important;

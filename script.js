@@ -22,6 +22,9 @@ const DEFAULT_CENTER = { lat: 31.4880, lng: 74.3430 };
 const CURRENT_USER_KEY = 'serviceCurrentUser';
 let currentUser = null; 
 
+// --- HARDCODED NGROK URL ---
+const NGROK_HOST = "https://elusive-lashonda-unfountained.ngrok-free.dev";
+
 document.addEventListener('DOMContentLoaded', function() {
     initializeMap();
     initializeEventListeners();
@@ -189,10 +192,17 @@ function updateUIForUser() {
         document.getElementById('addProviderBtnMobile').style.display = 'none';
     }
 
+    // Admin Specifics
     if (currentUser.role === 'admin') {
         document.getElementById('adminPanelBtn').style.display = 'inline-block';
+        if(document.getElementById('adminGeoPanel')) {
+            document.getElementById('adminGeoPanel').style.display = 'block';
+        }
     } else {
         document.getElementById('adminPanelBtn').style.display = 'none';
+        if(document.getElementById('adminGeoPanel')) {
+            document.getElementById('adminGeoPanel').style.display = 'none';
+        }
     }
 }
 
@@ -202,6 +212,10 @@ function updateUIForGuest() {
     document.getElementById('addProviderBtn').style.display = 'none';
     document.getElementById('addProviderBtnMobile').style.display = 'none';
     document.getElementById('adminPanelBtn').style.display = 'none';
+    
+    if(document.getElementById('adminGeoPanel')) {
+        document.getElementById('adminGeoPanel').style.display = 'none';
+    }
 }
 
 const convertBase64 = (file) => {
@@ -210,6 +224,15 @@ const convertBase64 = (file) => {
         fileReader.readAsDataURL(file);
         fileReader.onload = () => resolve(fileReader.result);
         fileReader.onerror = (error) => reject(error);
+    });
+};
+
+// Global function for the Locate Me Popup Button
+window.copyToClipboard = function(text) {
+    navigator.clipboard.writeText(text).then(function() {
+        alert("Coordinates copied: " + text);
+    }, function(err) {
+        console.error('Could not copy text: ', err);
     });
 };
 
@@ -231,7 +254,7 @@ function initializeEventListeners() {
     document.getElementById('searchInput').addEventListener('keypress', function(e) { if (e.key === 'Enter') performSearch(); });
     document.getElementById('applyFilters').addEventListener('click', applyFilters);
     document.getElementById('searchRadius').addEventListener('change', applyFilters);
-    document.getElementById('locateMe').addEventListener('click', locateUser);
+    document.getElementById('locateMe').addEventListener('click', () => locateUser());
     document.getElementById('resetMapBtn').addEventListener('click', resetMapView);
     document.getElementById('setOsmMap').addEventListener('click', () => setBasemap('osm'));
     document.getElementById('setSatelliteMap').addEventListener('click', () => setBasemap('satellite'));
@@ -240,7 +263,6 @@ function initializeEventListeners() {
 
     document.getElementById('togglePunjabBtn').addEventListener('click', togglePunjabLayer);
     
-    // --- THIS IS THE NEW BUTTON LISTENER ---
     const newLayerBtn = document.getElementById('toggleNewLayerBtn');
     if (newLayerBtn) {
         newLayerBtn.addEventListener('click', toggleNewLayer);
@@ -485,7 +507,6 @@ function executeRouting(providerId, reverse) {
         routingControl = null;
     }
     
-    // --- FIX: STOP OLD INTERVAL TRACKING ---
     if (liveTrackingId) {
         navigator.geolocation.clearWatch(liveTrackingId); 
         liveTrackingId = null;
@@ -639,7 +660,6 @@ function executeRouting(providerId, reverse) {
         }, 500);
     });
     
-    // --- FIX: LIVE TRACKING (watchPosition) ---
     if (!reverse) {
         liveTrackingId = navigator.geolocation.watchPosition(
             function(pos) {
@@ -699,10 +719,25 @@ function locateUser(callback) {
             userLocation = { lat: position.coords.latitude, lng: position.coords.longitude };
             searchAnchor = userLocation; 
             map.setView([userLocation.lat, userLocation.lng], 16);
+            
             if(window.userMarker) map.removeLayer(window.userMarker);
+            
+            // --- UPDATED POPUP WITH COPY BUTTON ---
+            const popupContent = `
+                <div style="text-align:center;">
+                    <b>You are here</b><br>
+                    <span style="font-size:0.85rem; color:#555;">${userLocation.lat.toFixed(5)}, ${userLocation.lng.toFixed(5)}</span><br>
+                    <button onclick="window.copyToClipboard('${userLocation.lat}, ${userLocation.lng}')" 
+                        style="margin-top:5px; padding:2px 8px; font-size:0.8rem; cursor:pointer; border:1px solid #ccc; background:#f0f0f0; border-radius:4px;">
+                        <i class="fas fa-copy"></i> Copy
+                    </button>
+                </div>
+            `;
+            
             window.userMarker = L.marker([userLocation.lat, userLocation.lng], {
                 icon: L.divIcon({ className: 'user-marker', html: '<i class="fas fa-dot-circle" style="color:#4285F4; font-size:24px; text-shadow:0 0 5px white;"></i>', iconSize: [24, 24] })
-            }).addTo(map).bindPopup('<b>You are here</b>');
+            }).addTo(map).bindPopup(popupContent);
+            
             updateMapRadius(parseFloat(document.getElementById('searchRadius').value));
             applyFilters();
             if(callback) callback(true);
@@ -946,7 +981,6 @@ function resetMapView() {
         window.userMarker = null; 
     }
     
-    // --- FIX: Stop WatchPosition on Reset ---
     if (liveTrackingId) {
         navigator.geolocation.clearWatch(liveTrackingId);
         liveTrackingId = null;
@@ -1218,16 +1252,7 @@ async function askAI_API(prompt) {
 
 function togglePunjabLayer() {
     const btn = document.getElementById('togglePunjabBtn');
-    const urlInput = document.getElementById('ngrokUrl');
-    let baseUrl = urlInput.value.trim();
-
-    if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
-
-    if (!baseUrl) {
-        alert("⚠️ Please paste your Ngrok URL first!\nExample: https://random-id.ngrok-free.app");
-        return;
-    }
-
+    
     if (punjabLayer && map.hasLayer(punjabLayer)) {
         map.removeLayer(punjabLayer);
         punjabLayer = null;
@@ -1236,12 +1261,12 @@ function togglePunjabLayer() {
         btn.style.color = "";
         btn.style.borderColor = "#d69e2e";
     } else {
-        punjabLayer = L.tileLayer.wms(`${baseUrl}/geoserver/wms`, {
-            layers: 'myprojectwebgis:punjab_boundary', // This must match your GeoServer Layer Name
+        punjabLayer = L.tileLayer.wms(`${NGROK_HOST}/geoserver/wms`, {
+            layers: 'myprojectwebgis:punjab_boundary', 
             format: 'image/png',
             transparent: true,
             version: '1.1.0',
-            tiled: false, // Fixes the "Refused Stream" error
+            tiled: false, 
             styles: '',
             attribution: '© Local GeoServer (Punjab)'
         });
@@ -1257,28 +1282,18 @@ function togglePunjabLayer() {
 // --- NEW FUNCTION: Toggle Second Layer ---
 function toggleNewLayer() {
     const btn = document.getElementById('toggleNewLayerBtn');
-    const urlInput = document.getElementById('ngrokUrl');
-    let baseUrl = urlInput.value.trim();
-
-    if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
-
-    if (!baseUrl) {
-        alert("⚠️ Please paste your Ngrok URL first!");
-        return;
-    }
 
     if (newLayer && map.hasLayer(newLayer)) {
         map.removeLayer(newLayer);
         newLayer = null;
-        btn.textContent = "Load My Project";
+        btn.textContent = "Shop Data Layer";
         btn.style.background = ""; 
         btn.style.color = "";
     } else {
-        // --- IMPORTANT: CHANGE 'myprojectwebgis:your_new_layer_name' BELOW ---
-        const layerName = 'myprojectwebgis:shops'; // <--- IF IT DOESN'T WORK, CHECK THIS NAME
-        alert(`Attempting to load layer: ${layerName}\nMake sure this name matches GeoServer exactly!`);
+        const layerName = 'myprojectwebgis:shops'; 
+        alert(`Attempting to load layer: ${layerName} from Admin Console`);
 
-        newLayer = L.tileLayer.wms(`${baseUrl}/geoserver/wms`, {
+        newLayer = L.tileLayer.wms(`${NGROK_HOST}/geoserver/wms`, {
             layers: layerName, 
             format: 'image/png',
             transparent: true,
@@ -1288,10 +1303,9 @@ function toggleNewLayer() {
             attribution: '© Local GeoServer (New Layer)'
         });
         newLayer.addTo(map);
-        // You can change this zoom location if you want to focus somewhere else
         map.flyTo([31.4880, 74.3430], 13, { animate: true, duration: 1.5 });
         
-        btn.textContent = "Hide My Project";
+        btn.textContent = "Hide Shop Data";
         btn.style.background = "#2b6cb0";
         btn.style.color = "white";
     }

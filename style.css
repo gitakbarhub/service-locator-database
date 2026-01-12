@@ -350,7 +350,7 @@ body {
     .leaflet-routing-container { 
         /* Dimensions: Narrow width, Taller height (vertical rectangle) */
         width: 180px !important; 
-        max-height: 50vh !important; 
+        max-height: 75vh !important;  /* INCREASED LENGTH (HEIGHT) FOR MOBILE */
         font-size: 11px !important; /* Small text */
         
         /* Positioning: Below top buttons, Left of side buttons */

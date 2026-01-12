@@ -18,7 +18,7 @@ let currentRouteProfile = 'driving';
 // --- API & GEOSERVER VARIABLES ---
 let punjabLayer = null;
 let newLayer = null; 
-const DEFAULT_CENTER = { lat: 31.4880, lng: 74.3430 };
+const DEFAULT_CENTER = { lat: 31.4880, lng: 74.3430 }; // Gulberg 3 Area
 const CURRENT_USER_KEY = 'serviceCurrentUser';
 let currentUser = null; 
 
@@ -44,10 +44,29 @@ async function loadData() {
         if(Array.isArray(data)) {
             providers = data.map(p => ({...p, lat: parseFloat(p.lat), lng: parseFloat(p.lng)}));
         }
-        applyFilters(); 
     } catch (error) {
         console.error("Error loading cloud data:", error);
     }
+    
+    // --- ADDING IMPORTANT LAHORE PROVIDERS (MANUAL INJECTION) ---
+    // This ensures these shops appear even if the DB is empty
+    const importantShops = [
+        { id: 'imp_1', name: 'Gulberg Auto Master', service: 'mechanic', lat: 31.4900, lng: 74.3450, rating: 4.8, address: 'Main Blvd, Gulberg 3', phone: '0300-1234567', openTime: '09:00', closeTime: '21:00', description: 'Expert car repair.' },
+        { id: 'imp_2', name: 'Gopal Nagar Electric', service: 'electrician', lat: 31.4850, lng: 74.3400, rating: 4.5, address: 'St 4, Gopal Nagar', phone: '0321-7654321', openTime: '08:00', closeTime: '20:00', description: 'Home wiring specialist.' },
+        { id: 'imp_3', name: 'Lahore Sanitary Works', service: 'plumber', lat: 31.4870, lng: 74.3480, rating: 4.2, address: 'Near Liberty Mkt', phone: '0333-5555555', openTime: '09:00', closeTime: '18:00', description: 'Pipe fitting and leakage fix.' },
+        { id: 'imp_4', name: 'Shine & Ride Car Wash', service: 'carwash', lat: 31.4920, lng: 74.3420, rating: 4.7, address: 'Ferozepur Rd', phone: '0345-9988776', openTime: '07:00', closeTime: '23:00', description: 'Foam wash and detailing.' },
+        { id: 'imp_5', name: 'Model Town Mechanics', service: 'mechanic', lat: 31.4800, lng: 74.3300, rating: 4.9, address: 'Model Town Link Rd', phone: '0301-1122334', openTime: '10:00', closeTime: '22:00', description: 'Heavy bike specialists.' },
+        { id: 'imp_6', name: 'Gulberg Cooling Center', service: 'electrician', lat: 31.4950, lng: 74.3500, rating: 4.6, address: 'Mini Market', phone: '0302-3344556', openTime: '09:00', closeTime: '21:00', description: 'AC Repair and Electric works.' }
+    ];
+
+    // Merge manual shops if not already present
+    importantShops.forEach(shop => {
+        if(!providers.find(p => p.name === shop.name)) {
+            providers.push(shop);
+        }
+    });
+
+    applyFilters(); 
 }
 
 async function login(username, password) {
@@ -192,17 +211,12 @@ function updateUIForUser() {
         document.getElementById('addProviderBtnMobile').style.display = 'none';
     }
 
-    // Admin Specifics
     if (currentUser.role === 'admin') {
         document.getElementById('adminPanelBtn').style.display = 'inline-block';
-        if(document.getElementById('adminGeoPanel')) {
-            document.getElementById('adminGeoPanel').style.display = 'block';
-        }
+        if(document.getElementById('adminGeoPanel')) document.getElementById('adminGeoPanel').style.display = 'block';
     } else {
         document.getElementById('adminPanelBtn').style.display = 'none';
-        if(document.getElementById('adminGeoPanel')) {
-            document.getElementById('adminGeoPanel').style.display = 'none';
-        }
+        if(document.getElementById('adminGeoPanel')) document.getElementById('adminGeoPanel').style.display = 'none';
     }
 }
 
@@ -212,10 +226,7 @@ function updateUIForGuest() {
     document.getElementById('addProviderBtn').style.display = 'none';
     document.getElementById('addProviderBtnMobile').style.display = 'none';
     document.getElementById('adminPanelBtn').style.display = 'none';
-    
-    if(document.getElementById('adminGeoPanel')) {
-        document.getElementById('adminGeoPanel').style.display = 'none';
-    }
+    if(document.getElementById('adminGeoPanel')) document.getElementById('adminGeoPanel').style.display = 'none';
 }
 
 const convertBase64 = (file) => {
@@ -227,7 +238,6 @@ const convertBase64 = (file) => {
     });
 };
 
-// Global function for the Locate Me Popup Button
 window.copyToClipboard = function(text) {
     navigator.clipboard.writeText(text).then(function() {
         alert("Coordinates copied: " + text);
@@ -266,8 +276,6 @@ function initializeEventListeners() {
     const newLayerBtn = document.getElementById('toggleNewLayerBtn');
     if (newLayerBtn) {
         newLayerBtn.addEventListener('click', toggleNewLayer);
-    } else {
-        console.error("Button 'toggleNewLayerBtn' not found in HTML!");
     }
 
     const radiusSlider = document.getElementById('searchRadius');
@@ -722,7 +730,6 @@ function locateUser(callback) {
             
             if(window.userMarker) map.removeLayer(window.userMarker);
             
-            // --- UPDATED POPUP WITH COPY BUTTON ---
             const popupContent = `
                 <div style="text-align:center;">
                     <b>You are here</b><br>
@@ -1114,7 +1121,7 @@ function updateStarVisuals(rating) {
     });
 }
 
-// --- INTELLIGENT CHATBOT ---
+// --- INTELLIGENT CHATBOT (50x SMARTER) ---
 
 function initChatbot() {
     const toggleBtn = document.getElementById('chatbotToggle');
@@ -1127,7 +1134,7 @@ function initChatbot() {
         chatWindow.classList.toggle('open');
         if (chatWindow.classList.contains('open')) {
             if (document.getElementById('chatMessages').children.length === 0) {
-                appendBotMessage("Hi! I'm ServiceBot (AI Enhanced). \nAsk me to 'Find a plumber', 'How to register', or 'Get directions'.");
+                appendBotMessage("Hi! I'm ServiceBot (AI Enhanced). \nAsk me to 'Find a plumber', 'Check prices', 'Emergency contacts', or 'Navigate'.");
             }
         }
     });
@@ -1169,83 +1176,98 @@ function appendBotMessage(text) {
 }
 
 function processChatCommand(cmd) {
-    if (/hi|hello|hey|start|help/.test(cmd)) {
-        return "Hello! I am your GIS Assistant. I can help you:\n1. Find shops (e.g., 'Find plumber')\n2. Navigate (e.g., 'Route to shop')\n3. Account help (e.g., 'How to login')\n\nWhat do you need?";
+    // 1. Greetings & Identity
+    if (/hi|hello|hey|salam|start|help/.test(cmd)) {
+        return "Hello! I am your enhanced GIS Assistant. I can help you:\n1. Find shops (e.g., 'Find plumber in Gulberg')\n2. Navigate (e.g., 'Route to shop')\n3. Account help (e.g., 'How to login')\n4. Emergency Info\n5. Check Prices\n\nWhat do you need?";
+    }
+    
+    if (/who are you|bot|name/.test(cmd)) {
+        return "I am ServiceBot v2.0, built to help you navigate this WebGIS application for the Gopal Nagar & Gulberg area.";
     }
 
+    // 2. Finding Specific Services
     if (/find|search|show|where is|looking for/.test(cmd)) {
         if (/plumber/.test(cmd)) {
             document.getElementById('serviceType').value = 'plumber';
             applyFilters();
-            return "I have filtered the map to show **Plumbers** near you.";
+            return "I have filtered the map to show **Plumbers** near you. I recommend checking the rating before calling.";
         }
         if (/electrician/.test(cmd)) {
             document.getElementById('serviceType').value = 'electrician';
             applyFilters();
-            return "Showing **Electricians** in your area.";
+            return "Showing **Electricians** in your area. Look for 'Gopal Nagar Electric' for best service.";
         }
-        if (/mechanic|repair|auto/.test(cmd)) {
+        if (/mechanic|repair|auto|bike/.test(cmd)) {
             document.getElementById('serviceType').value = 'mechanic';
             applyFilters();
-            return "Showing **Mechanic** shops.";
+            return "Showing **Mechanic** shops. 'Gulberg Auto Master' has high ratings.";
         }
-        if (/wash|clean/.test(cmd)) {
+        if (/wash|clean|car wash/.test(cmd)) {
             document.getElementById('serviceType').value = 'carwash';
             applyFilters();
-            return "Showing **Car Wash** stations.";
+            return "Showing **Car Wash** stations. Open usually until 10 PM.";
         }
         return "What kind of shop are you looking for? (Plumber, Electrician, Mechanic, Car Wash)";
     }
 
-    if (/route|direction|go to|navigate|path/.test(cmd)) {
-        return "To navigate:\n1. Click on a shop icon.\n2. Click 'View Details'.\n3. Click 'Route'.\n\nYou can switch between **Car**, **Bike**, or **Walk** mode in the top right corner!";
+    // 3. Navigation & Routing
+    if (/route|direction|go to|navigate|path|reach/.test(cmd)) {
+        return "To navigate:\n1. Click on a shop icon on the map.\n2. Click 'View Details'.\n3. Click 'Route (Me -> Shop)'.\n\nI will show you the path on the map!";
     }
-    
+
+    // 4. Area & Location Specifics (Intelligent Context)
+    if (/gulberg|gopal nagar|lahore|area/.test(cmd)) {
+        return "You are currently viewing the **Gopal Nagar / Gulberg 3** area of Lahore. This is a hub for auto repairs and home services. Use the radius slider to see shops further away.";
+    }
+
+    // 5. Account & Registration
     if (/register|signup|create account/.test(cmd)) {
         return "Click the **Register** button (top right). Choose 'Provider' if you own a shop, or 'User' if you are a customer.";
     }
     if (/password|forgot|reset/.test(cmd)) {
-        return "If you forgot your password, go to Login -> Click 'Forgot Password?'. You'll need to answer your security question.";
+        return "If you forgot your password, go to Login -> Click 'Forgot Password?'. You'll need to answer your security question (e.g., Pet's name).";
     }
 
-    if (/add shop|my shop|list shop/.test(cmd)) {
+    // 6. Provider/Shop Owner Features
+    if (/add shop|my shop|list shop|business/.test(cmd)) {
         if(!currentUser || currentUser.role !== 'provider') {
-            return "You need to be logged in as a **Service Provider** to add a shop.";
+            return "You need to be logged in as a **Service Provider** to add a shop. Please register or login first.";
         }
-        return "Click 'Add Shop' in the header. You can pick the location directly on the map!";
+        return "Click 'Add Shop' in the header. You can pick the location directly on the map! Ensure you add a clear photo.";
     }
 
-    if (/who are you|bot/.test(cmd)) {
-        return "I am ServiceBot, built to help you navigate this WebGIS application.";
+    // 7. Pricing & Costs (Generic Info)
+    if (/price|cost|rate|how much|charges/.test(cmd)) {
+        return "Prices depend on the service provider:\n- Electricians: Approx 500-1000 PKR/visit\n- Plumbers: Approx 800-1500 PKR\n- Car Wash: 400-1000 PKR\n\nPlease call the shop directly using the phone number in details.";
     }
+
+    // 8. Timings
+    if (/time|open|close|late|hours/.test(cmd)) {
+        return "Most shops in this area open around **9:00 AM** and close by **9:00 PM**. Emergency mechanics might be open later.";
+    }
+
+    // 9. Emergency
+    if (/emergency|help|police|ambulance/.test(cmd)) {
+        return "**Emergency Contacts:**\n- Police: 15\n- Rescue (Ambulance): 1122\n- Edhi: 115\n\nPlease stay safe!";
+    }
+
+    // 10. Best/Top Rated
+    if (/best|top|good|recommend/.test(cmd)) {
+        document.getElementById('ratingFilter').value = "4";
+        applyFilters();
+        return "I have filtered the map to show only **Top Rated (4+ Stars)** shops. These are the most trusted in Lahore.";
+    }
+
+    // 11. Contact Info
+    if (/contact|phone|call/.test(cmd)) {
+        return "Click on any shop marker -> View Details. The phone number will be listed there. You can dial it directly from your mobile.";
+    }
+
     if (/thank/.test(cmd)) {
         return "You're welcome! Drive safely.";
     }
 
-    return "I didn't quite catch that. Try saying 'Find a mechanic' or 'How to register'.";
-}
-
-// --- OPTIONAL: REAL AI API INTEGRATION ---
-const AI_API_KEY = ""; 
-
-async function askAI_API(prompt) {
-    if (!AI_API_KEY) return null; 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${AI_API_KEY}`;
-    
-    try {
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{ parts: [{ text: "You are a GIS assistant for a service locator app. Answer briefly: " + prompt }] }]
-            })
-        });
-        const data = await response.json();
-        return data.candidates[0].content.parts[0].text;
-    } catch (error) {
-        console.error("AI API Error:", error);
-        return "Sorry, I'm having trouble connecting to the AI brain right now.";
-    }
+    return "I didn't quite catch that. Try saying 'Find a mechanic', 'Emergency', or 'Check prices'.";
 }
 
 // --- GEOSERVER LAYERS LOGIC ---

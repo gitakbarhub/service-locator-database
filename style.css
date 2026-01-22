@@ -77,10 +77,42 @@ body {
     margin-right: 5px;
 }
 
-.search-bar { order: 1; display: flex; flex: 1; max-width: 500px; min-width: 250px; margin: 0 20px; }
+/* REQ 3: Updated Search Bar to support suggestions */
+.search-bar { position: relative; order: 1; display: flex; flex: 1; max-width: 500px; min-width: 250px; margin: 0 20px; }
 .search-bar input { flex: 1; padding: 0.75rem 1rem; border: none; border-radius: 25px 0 0 25px; font-size: 1rem; outline: none; }
 .search-bar button { padding: 0.75rem 1.5rem; border: none; border-radius: 0 25px 25px 0; background: #4a5568; color: white; cursor: pointer; transition: background 0.3s; }
 .search-bar button:hover { background: #2d3748; }
+
+/* REQ 3: Search Suggestions Styling */
+.search-suggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    background: white;
+    border-radius: 0 0 15px 15px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+    z-index: 1200;
+    display: none; /* Hidden by default */
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid #e2e8f0;
+}
+
+.search-suggestion-item {
+    padding: 10px 15px;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.search-suggestion-item:last-child { border-bottom: none; }
+.search-suggestion-item:hover { background-color: #f7fafc; }
+.suggestion-type { font-size: 0.75rem; color: #667eea; font-weight: bold; background: #edf2f7; padding: 2px 6px; border-radius: 4px; }
+.suggestion-text { font-weight: 500; color: #2d3748; }
+
 
 .user-actions { order: 3; }
 .user-actions .btn-primary { background: #48bb78; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 25px; cursor: pointer; font-weight: 600; transition: background 0.3s; white-space: nowrap; }
@@ -304,7 +336,9 @@ body {
         
         transform: translateY(calc(100% - 35px)); 
         transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
-        padding: 0 1.5rem 1.5rem 1.5rem;
+        
+        /* REQ 7: Adjusted padding to ensure "Filter Area Shops" is visible below handle */
+        padding: 1rem 1.5rem 1.5rem 1.5rem;
     }
 
     .sidebar.expanded {
@@ -324,10 +358,12 @@ body {
         cursor: pointer;
         background: #667eea;
         border-radius: 20px 20px 0 0;
-        margin-bottom: 5px;
+        
+        /* Fixed margins to align properly with new padding */
         margin-left: -1.5rem; 
         width: calc(100% + 3rem); 
-        margin-top: -1.5rem; 
+        margin-top: -1rem; 
+        margin-bottom: 15px; /* Added spacing below handle */
         box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
     
@@ -344,20 +380,16 @@ body {
     }
     
     /* --- ROUTING WINDOW (VERTICAL RECTANGLE, RIGHT ALIGNED) --- */
-    /* UPDATED ACCORDING TO USER REQUIREMENTS */
     .route-mode-controls { margin-right: 50px !important; margin-top: 5px !important; }
     
     .leaflet-routing-container { 
-        width: auto !important; /* Allow growing up to max-width */
-        max-width: 650px !important; /* SPECIFIED BY USER */
-        max-height: 80vh !important;  /* Very Tall / Big */
+        width: auto !important; 
+        max-width: 650px !important;
+        max-height: 80vh !important;
         font-size: 11px !important; 
-        
-        /* Positioning */
         top: 65px !important; 
         right: 60px !important; 
         left: auto !important; 
-        
         z-index: 100000 !important;
         overflow-y: auto !important;
     }

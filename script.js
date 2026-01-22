@@ -22,6 +22,18 @@ const DEFAULT_CENTER = { lat: 31.4880, lng: 74.3430 }; // Gulberg 3 Area
 const CURRENT_USER_KEY = 'serviceCurrentUser';
 let currentUser = null; 
 
+// --- REQ 1: DEFINED ALL SERVICES FOR CATEGORY SEARCH ---
+const ALL_SERVICES_MAP = {
+    'electrician': 'Electrician',
+    'plumber': 'Plumber',
+    'mechanic': 'Mechanic',
+    'carwash': 'Car/Bike Wash',
+    'carpenter': 'Carpenter (Wood Work)',
+    'painter': 'Painter',
+    'ac_repair': 'AC Repair / HVAC',
+    'welder': 'Welder / Steel Work'
+};
+
 // --- HARDCODED NGROK URL ---
 const NGROK_HOST = "https://elusive-lashonda-unfountained.ngrok-free.dev";
 
@@ -44,13 +56,40 @@ async function loadData() {
         if(Array.isArray(data)) {
             providers = data.map(p => ({...p, lat: parseFloat(p.lat), lng: parseFloat(p.lng)}));
         }
-        // REQ 2: Do NOT show shops immediately. 
-        // We load data into memory, but we don't render until user filters/searches.
-        renderProvidersList([], false); 
-        addProvidersToMap([]);
+        
+        // REQ 2: On load, calculate Best Shops per Category
+        const bestShops = getBestShopsPerCategory(providers);
+        // Render Top 4 by default
+        renderProvidersList(bestShops, true, true); 
+        addProvidersToMap(bestShops);
+        
     } catch (error) {
         console.error("Error loading cloud data:", error);
     }
+}
+
+// --- REQ 2: LOGIC TO FIND BEST SHOP PER CATEGORY ---
+function getBestShopsPerCategory(allProviders) {
+    const grouped = {};
+    
+    // Group by Service Type
+    allProviders.forEach(p => {
+        if (!grouped[p.service]) grouped[p.service] = [];
+        grouped[p.service].push(p);
+    });
+    
+    const bestShops = [];
+    
+    // For each service, sort by Rating (desc) then Reviews (desc), pick Top 1
+    Object.keys(grouped).forEach(service => {
+        const sorted = grouped[service].sort((a, b) => {
+            if (b.rating !== a.rating) return b.rating - a.rating;
+            return b.reviews - a.reviews; // Assuming 'reviews' count exists, else ignore
+        });
+        if (sorted.length > 0) bestShops.push(sorted[0]);
+    });
+    
+    return bestShops;
 }
 
 async function login(username, password) {
@@ -244,16 +283,15 @@ function initializeMap() {
 }
 
 function initializeEventListeners() {
-    // REQ 3: Input Event for Suggestions
+    // REQ 1 & 2: Search Input & Button
     const searchInput = document.getElementById('searchInput');
     searchInput.addEventListener('input', handleSearchInput);
-    searchInput.addEventListener('keypress', function(e) { if (e.key === 'Enter') performSearch(); });
+    searchInput.addEventListener('keypress', function(e) { if (e.key === 'Enter') applyFilters(); });
+    document.getElementById('searchBtn').addEventListener('click', applyFilters);
     
-    document.getElementById('searchBtn').addEventListener('click', performSearch);
-    
-    // REQ 5: Filter Logic triggers same display rules
+    // REQ 2: Filters Trigger Logic
     document.getElementById('applyFilters').addEventListener('click', applyFilters);
-    document.getElementById('serviceType').addEventListener('change', applyFilters); // Trigger on change immediately
+    document.getElementById('serviceType').addEventListener('change', applyFilters);
     document.getElementById('ratingFilter').addEventListener('change', applyFilters);
     document.getElementById('searchRadius').addEventListener('change', applyFilters);
     
@@ -353,7 +391,6 @@ function initializeEventListeners() {
         });
     });
 
-    // Close suggestions on outside click
     document.addEventListener('click', function(e) {
         if (!e.target.closest('.search-bar')) {
             document.getElementById('searchSuggestions').style.display = 'none';
@@ -361,7 +398,7 @@ function initializeEventListeners() {
     });
 }
 
-// --- REQ 3: AUTOCOMPLETE & SUGGESTION LOGIC ---
+// --- REQ 1: SMART CATEGORY SEARCH ---
 function handleSearchInput(e) {
     const query = e.target.value.toLowerCase().trim();
     const suggestionBox = document.getElementById('searchSuggestions');
@@ -372,11 +409,13 @@ function handleSearchInput(e) {
         return;
     }
 
-    // 1. Suggest Categories (that start with query)
-    const distinctServices = [...new Set(providers.map(p => p.service))];
-    const matchingServices = distinctServices.filter(s => s.toLowerCase().includes(query));
+    // 1. Suggest Categories from master list (even if no shops exist)
+    const allServices = Object.keys(ALL_SERVICES_MAP);
+    const matchingServices = allServices.filter(key => 
+        ALL_SERVICES_MAP[key].toLowerCase().includes(query)
+    );
 
-    // 2. Suggest Specific Shops (that contain query)
+    // 2. Suggest Specific Shops
     const matchingShops = providers.filter(p => p.name.toLowerCase().includes(query));
 
     if (matchingServices.length === 0 && matchingShops.length === 0) {
@@ -386,21 +425,20 @@ function handleSearchInput(e) {
 
     suggestionBox.style.display = 'block';
 
-    // Add Categories First
-    matchingServices.forEach(service => {
+    // Render Category Suggestions
+    matchingServices.forEach(serviceKey => {
         const item = document.createElement('div');
         item.className = 'search-suggestion-item';
-        item.innerHTML = `<span class="suggestion-text">${getServiceDisplayName(service)}</span> <span class="suggestion-type">Category</span>`;
+        item.innerHTML = `<span class="suggestion-text">${ALL_SERVICES_MAP[serviceKey]}</span> <span class="suggestion-type">Category</span>`;
         item.addEventListener('click', () => {
-            document.getElementById('searchInput').value = ""; // Clear search text
-            document.getElementById('serviceType').value = service; // Set Filter
+            document.getElementById('searchInput').value = ""; 
+            document.getElementById('serviceType').value = serviceKey; 
             suggestionBox.style.display = 'none';
-            applyFilters(); // Trigger Filter Logic
+            applyFilters(); 
         });
         suggestionBox.appendChild(item);
     });
 
-    // Add Separator if both exist
     if (matchingServices.length > 0 && matchingShops.length > 0) {
         const sep = document.createElement('div');
         sep.style.borderTop = '1px solid #ddd';
@@ -408,7 +446,7 @@ function handleSearchInput(e) {
         suggestionBox.appendChild(sep);
     }
 
-    // Add Shops Next
+    // Render Shop Suggestions
     matchingShops.forEach(shop => {
         const item = document.createElement('div');
         item.className = 'search-suggestion-item';
@@ -416,7 +454,6 @@ function handleSearchInput(e) {
         item.addEventListener('click', () => {
             document.getElementById('searchInput').value = shop.name;
             suggestionBox.style.display = 'none';
-            // Specific Logic for Req 4: Show ONLY this shop
             filterSpecificShop(shop.id); 
         });
         suggestionBox.appendChild(item);
@@ -426,18 +463,15 @@ function handleSearchInput(e) {
 function filterSpecificShop(shopId) {
     const shop = providers.find(p => p.id === shopId);
     if(shop) {
-        // Render only this shop in list and map
         renderProvidersList([shop]);
         addProvidersToMap([shop]);
         map.setView([shop.lat, shop.lng], 16);
-        setTimeout(() => markers[0].openPopup(), 300); // Open popup for the single marker
-        
-        // Update Filter UI to match this shop's service (Optional but good UX)
+        setTimeout(() => markers[0].openPopup(), 300); 
         document.getElementById('serviceType').value = shop.service;
     }
 }
 
-// --- CORE DISPLAY LOGIC UPDATED FOR REQ 2, 4, 5 ---
+// --- CORE DISPLAY LOGIC WITH "SEE MORE" ---
 
 function applyFilters() {
     const serviceType = document.getElementById('serviceType').value;
@@ -446,26 +480,21 @@ function applyFilters() {
     const centerPoint = L.latLng(searchAnchor.lat, searchAnchor.lng);
     const searchQuery = document.getElementById('searchInput').value.toLowerCase().trim();
 
-    // REQ 2: Initial State Check
-    // If no service selected, no search text, and default rating -> Show Nothing
+    // If default state, show Best Shops
     if (serviceType === 'all' && searchQuery === '' && minRating === 0) {
-        renderProvidersList([], false);
-        addProvidersToMap([]);
+        const bestShops = getBestShopsPerCategory(providers);
+        renderProvidersList(bestShops, true, true); // true, true = isBestList, limitView
+        addProvidersToMap(bestShops);
         return;
     }
 
     const filtered = providers.filter(p => {
-        // Filter by Service Type (Dropdown)
         const matchService = (serviceType === 'all') || (p.service === serviceType);
-        // Filter by Rating
         const matchRating = (p.rating >= minRating);
-        // Filter by Radius
         const providerPoint = L.latLng(p.lat, p.lng);
         const distanceMeters = centerPoint.distanceTo(providerPoint);
         const matchDistance = distanceMeters <= (radiusKm * 1000);
         
-        // Filter by Search Query (if any)
-        // If query exists, match Name OR Service
         let matchSearch = true;
         if (searchQuery !== '') {
             matchSearch = p.name.toLowerCase().includes(searchQuery) || 
@@ -475,31 +504,50 @@ function applyFilters() {
         return matchService && matchRating && matchDistance && matchSearch;
     });
 
-    renderProvidersList(filtered);
+    renderProvidersList(filtered, false, true); // limited view for search results too
     addProvidersToMap(filtered);
     
-    // Auto-fit bounds if we have results
     if (filtered.length > 0) {
         const group = new L.featureGroup(markers);
         map.fitBounds(group.getBounds().pad(0.2));
     }
 }
 
-function renderProvidersList(listToRender, isEmptyState = false) {
+// REQ 2: Render List with "See More" Logic
+function renderProvidersList(listToRender, isBestList = false, limitView = false) {
     const container = document.getElementById('providersContainer');
+    const seeMoreContainer = document.getElementById('seeMoreContainer');
     container.innerHTML = '';
-    
-    // REQ 2: Initial Message
+    seeMoreContainer.innerHTML = ''; // Clear previous button
+
+    // Title Logic
+    const title = document.querySelector('.providers-list h3');
+    if (isBestList) title.textContent = "Featured Shops (Best in Area)";
+    else title.textContent = "Search Results";
+
     if (listToRender.length === 0) { 
-        if(isEmptyState === false && (document.getElementById('serviceType').value !== 'all' || document.getElementById('searchInput').value !== '')) {
-             container.innerHTML = "<p style='text-align:center; color:#666;'>No shops found matching your criteria.</p>";
-        } else {
-             container.innerHTML = "<p style='text-align:center; color:#666; font-style:italic; padding:10px;'>Search or select a service to see shops.</p>";
-        }
+        container.innerHTML = "<p style='text-align:center; color:#666;'>No shops found.</p>";
         return; 
     }
 
-    listToRender.forEach(provider => {
+    // Logic: Limit to 4 if limitView is true
+    let displayList = listToRender;
+    const LIMIT = 4;
+    
+    if (limitView && listToRender.length > LIMIT) {
+        displayList = listToRender.slice(0, LIMIT);
+        
+        // Add "See More" Button
+        const btn = document.createElement('button');
+        btn.className = 'btn-see-more';
+        btn.textContent = `See More (${listToRender.length - LIMIT} more)`;
+        btn.onclick = function() {
+            renderProvidersList(listToRender, isBestList, false); // Re-render without limit
+        };
+        seeMoreContainer.appendChild(btn);
+    }
+
+    displayList.forEach(provider => {
          const card = document.createElement('div');
          card.className = 'provider-card';
          card.setAttribute('data-id', provider.id);
@@ -514,9 +562,8 @@ function renderProvidersList(listToRender, isEmptyState = false) {
             <div class="provider-rating"><span class="stars">${stars}</span><span>${provider.rating}</span><span class="status-badge ${statusClass}">${statusText}</span></div>
             <div class="provider-address"><i class="fas fa-map-marker-alt"></i> ${provider.address}</div>`;
          
-         // REQ 4: Clicking card isolates shop logic
          card.addEventListener('click', function() { 
-             filterSpecificShop(provider.id); // Re-use the isolation logic
+             filterSpecificShop(provider.id); 
              highlightProviderCard(provider.id); 
          });
          
@@ -535,8 +582,6 @@ function addProvidersToMap(listToRender) {
         markers.push(marker);
     });
 }
-
-// ... [Existing Logic for isShopOpen, openAddProviderModal, handleProviderSubmit, editCurrentProvider, showProviderDetails etc. remains unchanged] ...
 
 function isShopOpen(open, close) {
     if(!open || !close) return false;
@@ -736,14 +781,15 @@ function resetMapView() {
     document.getElementById('radiusValue').textContent = "1 km";
     document.getElementById('serviceType').value = "all";
     document.getElementById('ratingFilter').value = "0";
-    document.getElementById('searchInput').value = ""; // Clear Search
+    document.getElementById('searchInput').value = ""; 
     document.getElementById('toggleNarratorBtn').style.display = 'none';
     document.getElementById('toggleRouteInfoBtn').style.display = 'none';
     updateMapRadius(1);
     
-    // Clear list and map on reset
-    renderProvidersList([], false);
-    addProvidersToMap([]);
+    // REQ 2: Reset shows Best Shops again
+    const bestShops = getBestShopsPerCategory(providers);
+    renderProvidersList(bestShops, true, true);
+    addProvidersToMap(bestShops);
 }
 
 function createPopupContent(provider) {
@@ -753,17 +799,8 @@ function createPopupContent(provider) {
 }
 
 function getServiceDisplayName(serviceType) {
-    const serviceNames = { 
-        'electrician': 'Electrician', 
-        'plumber': 'Plumber', 
-        'mechanic': 'Mechanic', 
-        'carwash': 'Car/Bike Wash',
-        'carpenter': 'Carpenter',
-        'painter': 'Painter',
-        'ac_repair': 'AC Repair',
-        'welder': 'Welder'
-    };
-    return serviceNames[serviceType] || serviceType;
+    // REQ 1: Use the master map for consistency
+    return ALL_SERVICES_MAP[serviceType] || serviceType;
 }
 
 function showProviderOnMap(providerId) {
@@ -802,11 +839,6 @@ function setBasemap(layerName) {
         document.getElementById('setOsmMap').classList.remove('active');
         document.getElementById('setSatelliteMap').classList.add('active');
     }
-}
-
-// NOTE: performSearch is now mostly handled by applyFilters but kept for button click compatibility
-function performSearch() {
-    applyFilters();
 }
 
 function toggleLocationPicker() {
@@ -857,7 +889,7 @@ function updateStarVisuals(rating) {
     });
 }
 
-// --- REQ 6: INTELLIGENT CHATBOT (GREATLY EXPANDED) ---
+// --- INTELLIGENT CHATBOT ---
 
 function initChatbot() {
     const toggleBtn = document.getElementById('chatbotToggle');
@@ -912,37 +944,24 @@ function appendBotMessage(text) {
 }
 
 function processChatCommand(cmd) {
-    // 1. ADMIN & ACCOUNTS
     if (/admin/.test(cmd)) return "The **Admin Panel** (orange button) is for authorized users to manage data and view system stats. It requires an 'admin' role login.";
     if (/login|sign in/.test(cmd)) return "Click the **Login** button at the top right. You can log in as a User or Shop Provider.";
     if (/register|signup|account/.test(cmd)) return "Click **Register** to create a new account. Choose 'Service Provider' if you want to list your shop, or 'User' if you want to write reviews.";
     if (/forgot|password/.test(cmd)) return "In the Login screen, click **Forgot Password?**. You will need to answer your security question to recover it.";
-
-    // 2. MAP CONTROLS
     if (/reset|compress|refresh/.test(cmd)) return "The **Reset Map** button (compress arrows) clears the map, removes routes, and centers the view back to Gulberg.";
     if (/locate|location button|arrow|gps/.test(cmd)) return "The **Locate Me** button (arrow icon) uses GPS to find your current location and centers the map on you.";
     if (/satellite|view|osm|street/.test(cmd)) return "Use the Map Layer buttons (right side) to switch between **Street View** (simple map) and **Satellite View** (real imagery).";
-    
-    // 3. SEARCH & FILTERS (Modified for new logic)
     if (/search|find|looking for/.test(cmd)) return "Type in the Search Bar (e.g., 'Carpenter'). I will suggest categories or specific shops. Click a suggestion to filter the map.";
     if (/filter|radius|slider/.test(cmd)) return "Use the **Filter Sidebar** (left) to select a Service Type (like Plumber), a Minimum Rating, or adjust the **Search Radius** (0.5km to 5km).";
     if (/empty|no shops/.test(cmd)) return "The map starts empty to save data. Please select a service from the dropdown or type in the search bar to see shops.";
-
-    // 4. ROUTING & NAVIGATION
     if (/route|navigate|directions/.test(cmd)) return "To get directions: \n1. Click a Shop on the map or list.\n2. Click 'View Details'.\n3. Click **Route (Me -> Shop)**.\nI will draw the path and give instructions.";
     if (/narrator|voice/.test(cmd)) return "Once a route is active, click the **Speaker Icon** on the right to hear turn-by-turn voice instructions.";
     if (/walking|cycling|driving/.test(cmd)) return "When a route is shown, you can switch modes (Walking, Cycling, Driving) using the icons at the top right of the map.";
-
-    // 5. SERVICES
     if (/carpenter/.test(cmd)) return "Select 'Carpenter' in the dropdown or type 'c' in the search bar to find woodworkers.";
     if (/electrician/.test(cmd)) return "Select 'Electrician' to find power repair services.";
     if (/plumber/.test(cmd)) return "Select 'Plumber' to find water/pipe repair services.";
     if (/mechanic/.test(cmd)) return "Select 'Mechanic' for car or bike repairs.";
-
-    // 6. LAYERS
     if (/punjab|layer|geoserver/.test(cmd)) return "If you are an Admin, use the Filter panel to load special GeoServer layers like the **Punjab Boundary** or **Shop Data** overlays.";
-
-    // 7. GENERAL
     if (/hi|hello/.test(cmd)) return "Hello! I am your intelligent WebGIS assistant. Ask me anything about the app!";
     if (/thank/.test(cmd)) return "You're welcome! Happy searching.";
 

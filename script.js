@@ -44,7 +44,10 @@ async function loadData() {
         if(Array.isArray(data)) {
             providers = data.map(p => ({...p, lat: parseFloat(p.lat), lng: parseFloat(p.lng)}));
         }
-        applyFilters(); 
+        // REQ 2: Do NOT show shops immediately. 
+        // We load data into memory, but we don't render until user filters/searches.
+        renderProvidersList([], false); 
+        addProvidersToMap([]);
     } catch (error) {
         console.error("Error loading cloud data:", error);
     }
@@ -241,10 +244,19 @@ function initializeMap() {
 }
 
 function initializeEventListeners() {
+    // REQ 3: Input Event for Suggestions
+    const searchInput = document.getElementById('searchInput');
+    searchInput.addEventListener('input', handleSearchInput);
+    searchInput.addEventListener('keypress', function(e) { if (e.key === 'Enter') performSearch(); });
+    
     document.getElementById('searchBtn').addEventListener('click', performSearch);
-    document.getElementById('searchInput').addEventListener('keypress', function(e) { if (e.key === 'Enter') performSearch(); });
+    
+    // REQ 5: Filter Logic triggers same display rules
     document.getElementById('applyFilters').addEventListener('click', applyFilters);
+    document.getElementById('serviceType').addEventListener('change', applyFilters); // Trigger on change immediately
+    document.getElementById('ratingFilter').addEventListener('change', applyFilters);
     document.getElementById('searchRadius').addEventListener('change', applyFilters);
+    
     document.getElementById('locateMe').addEventListener('click', () => locateUser());
     document.getElementById('resetMapBtn').addEventListener('click', resetMapView);
     document.getElementById('setOsmMap').addEventListener('click', () => setBasemap('osm'));
@@ -340,7 +352,604 @@ function initializeEventListeners() {
             }
         });
     });
+
+    // Close suggestions on outside click
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.search-bar')) {
+            document.getElementById('searchSuggestions').style.display = 'none';
+        }
+    });
 }
+
+// --- REQ 3: AUTOCOMPLETE & SUGGESTION LOGIC ---
+function handleSearchInput(e) {
+    const query = e.target.value.toLowerCase().trim();
+    const suggestionBox = document.getElementById('searchSuggestions');
+    suggestionBox.innerHTML = '';
+
+    if (query.length === 0) {
+        suggestionBox.style.display = 'none';
+        return;
+    }
+
+    // 1. Suggest Categories (that start with query)
+    const distinctServices = [...new Set(providers.map(p => p.service))];
+    const matchingServices = distinctServices.filter(s => s.toLowerCase().includes(query));
+
+    // 2. Suggest Specific Shops (that contain query)
+    const matchingShops = providers.filter(p => p.name.toLowerCase().includes(query));
+
+    if (matchingServices.length === 0 && matchingShops.length === 0) {
+        suggestionBox.style.display = 'none';
+        return;
+    }
+
+    suggestionBox.style.display = 'block';
+
+    // Add Categories First
+    matchingServices.forEach(service => {
+        const item = document.createElement('div');
+        item.className = 'search-suggestion-item';
+        item.innerHTML = `<span class="suggestion-text">${getServiceDisplayName(service)}</span> <span class="suggestion-type">Category</span>`;
+        item.addEventListener('click', () => {
+            document.getElementById('searchInput').value = ""; // Clear search text
+            document.getElementById('serviceType').value = service; // Set Filter
+            suggestionBox.style.display = 'none';
+            applyFilters(); // Trigger Filter Logic
+        });
+        suggestionBox.appendChild(item);
+    });
+
+    // Add Separator if both exist
+    if (matchingServices.length > 0 && matchingShops.length > 0) {
+        const sep = document.createElement('div');
+        sep.style.borderTop = '1px solid #ddd';
+        sep.style.margin = '5px 0';
+        suggestionBox.appendChild(sep);
+    }
+
+    // Add Shops Next
+    matchingShops.forEach(shop => {
+        const item = document.createElement('div');
+        item.className = 'search-suggestion-item';
+        item.innerHTML = `<span class="suggestion-text">${shop.name}</span> <span class="suggestion-type">Shop</span>`;
+        item.addEventListener('click', () => {
+            document.getElementById('searchInput').value = shop.name;
+            suggestionBox.style.display = 'none';
+            // Specific Logic for Req 4: Show ONLY this shop
+            filterSpecificShop(shop.id); 
+        });
+        suggestionBox.appendChild(item);
+    });
+}
+
+function filterSpecificShop(shopId) {
+    const shop = providers.find(p => p.id === shopId);
+    if(shop) {
+        // Render only this shop in list and map
+        renderProvidersList([shop]);
+        addProvidersToMap([shop]);
+        map.setView([shop.lat, shop.lng], 16);
+        setTimeout(() => markers[0].openPopup(), 300); // Open popup for the single marker
+        
+        // Update Filter UI to match this shop's service (Optional but good UX)
+        document.getElementById('serviceType').value = shop.service;
+    }
+}
+
+// --- CORE DISPLAY LOGIC UPDATED FOR REQ 2, 4, 5 ---
+
+function applyFilters() {
+    const serviceType = document.getElementById('serviceType').value;
+    const minRating = parseFloat(document.getElementById('ratingFilter').value);
+    const radiusKm = parseFloat(document.getElementById('searchRadius').value);
+    const centerPoint = L.latLng(searchAnchor.lat, searchAnchor.lng);
+    const searchQuery = document.getElementById('searchInput').value.toLowerCase().trim();
+
+    // REQ 2: Initial State Check
+    // If no service selected, no search text, and default rating -> Show Nothing
+    if (serviceType === 'all' && searchQuery === '' && minRating === 0) {
+        renderProvidersList([], false);
+        addProvidersToMap([]);
+        return;
+    }
+
+    const filtered = providers.filter(p => {
+        // Filter by Service Type (Dropdown)
+        const matchService = (serviceType === 'all') || (p.service === serviceType);
+        // Filter by Rating
+        const matchRating = (p.rating >= minRating);
+        // Filter by Radius
+        const providerPoint = L.latLng(p.lat, p.lng);
+        const distanceMeters = centerPoint.distanceTo(providerPoint);
+        const matchDistance = distanceMeters <= (radiusKm * 1000);
+        
+        // Filter by Search Query (if any)
+        // If query exists, match Name OR Service
+        let matchSearch = true;
+        if (searchQuery !== '') {
+            matchSearch = p.name.toLowerCase().includes(searchQuery) || 
+                          p.service.toLowerCase().includes(searchQuery);
+        }
+
+        return matchService && matchRating && matchDistance && matchSearch;
+    });
+
+    renderProvidersList(filtered);
+    addProvidersToMap(filtered);
+    
+    // Auto-fit bounds if we have results
+    if (filtered.length > 0) {
+        const group = new L.featureGroup(markers);
+        map.fitBounds(group.getBounds().pad(0.2));
+    }
+}
+
+function renderProvidersList(listToRender, isEmptyState = false) {
+    const container = document.getElementById('providersContainer');
+    container.innerHTML = '';
+    
+    // REQ 2: Initial Message
+    if (listToRender.length === 0) { 
+        if(isEmptyState === false && (document.getElementById('serviceType').value !== 'all' || document.getElementById('searchInput').value !== '')) {
+             container.innerHTML = "<p style='text-align:center; color:#666;'>No shops found matching your criteria.</p>";
+        } else {
+             container.innerHTML = "<p style='text-align:center; color:#666; font-style:italic; padding:10px;'>Search or select a service to see shops.</p>";
+        }
+        return; 
+    }
+
+    listToRender.forEach(provider => {
+         const card = document.createElement('div');
+         card.className = 'provider-card';
+         card.setAttribute('data-id', provider.id);
+         const stars = '★'.repeat(Math.floor(provider.rating)) + '☆'.repeat(5 - Math.floor(provider.rating));
+         
+         const isOpen = isShopOpen(provider.openTime, provider.closeTime);
+         const statusClass = isOpen ? 'status-open' : 'status-closed';
+         const statusText = isOpen ? 'Open' : 'Closed';
+         
+         card.innerHTML = `
+            <div class="provider-header"><div><div class="provider-name">${provider.name}</div><span class="provider-service">${getServiceDisplayName(provider.service)}</span></div></div>
+            <div class="provider-rating"><span class="stars">${stars}</span><span>${provider.rating}</span><span class="status-badge ${statusClass}">${statusText}</span></div>
+            <div class="provider-address"><i class="fas fa-map-marker-alt"></i> ${provider.address}</div>`;
+         
+         // REQ 4: Clicking card isolates shop logic
+         card.addEventListener('click', function() { 
+             filterSpecificShop(provider.id); // Re-use the isolation logic
+             highlightProviderCard(provider.id); 
+         });
+         
+         container.appendChild(card);
+    });
+}
+
+function addProvidersToMap(listToRender) {
+    markers.forEach(marker => map.removeLayer(marker));
+    markers = [];
+    
+    listToRender.forEach(provider => {
+        const marker = L.marker([provider.lat, provider.lng]).addTo(map).bindPopup(createPopupContent(provider));
+        marker.providerId = provider.id;
+        marker.on('click', function() { highlightProviderCard(provider.id); });
+        markers.push(marker);
+    });
+}
+
+// ... [Existing Logic for isShopOpen, openAddProviderModal, handleProviderSubmit, editCurrentProvider, showProviderDetails etc. remains unchanged] ...
+
+function isShopOpen(open, close) {
+    if(!open || !close) return false;
+    const now = new Date();
+    const currentMins = now.getHours() * 60 + now.getMinutes();
+    
+    const [openH, openM] = open.split(':').map(Number);
+    const [closeH, closeM] = close.split(':').map(Number);
+    
+    const startMins = openH * 60 + openM;
+    const endMins = closeH * 60 + closeM;
+    
+    return currentMins >= startMins && currentMins <= endMins;
+}
+
+function openAddProviderModal(editMode = false, provider = null) {
+    const modal = document.getElementById('addProviderModal');
+    const form = document.getElementById('providerForm');
+    const title = document.getElementById('modalTitleProvider');
+    const btn = document.getElementById('saveProviderBtn');
+    
+    modal.style.display = 'block';
+    form.reset();
+    
+    if (editMode && provider) {
+        title.textContent = "Modify Shop";
+        btn.textContent = "Update Shop";
+        document.getElementById('editProviderId').value = provider.id;
+        document.getElementById('providerName').value = provider.name;
+        document.getElementById('providerService').value = provider.service;
+        document.getElementById('providerPhone').value = provider.phone;
+        document.getElementById('providerAddress').value = provider.address;
+        document.getElementById('providerDescription').value = provider.description || '';
+        document.getElementById('providerOpenTime').value = provider.openTime || '';
+        document.getElementById('providerCloseTime').value = provider.closeTime || '';
+        document.getElementById('newLat').value = provider.lat;
+        document.getElementById('newLng').value = provider.lng;
+        document.getElementById('locationStatus').textContent = `${provider.lat.toFixed(4)}, ${provider.lng.toFixed(4)}`;
+        document.getElementById('locationStatus').style.color = 'green';
+    } else {
+        title.textContent = "Add Service Provider";
+        btn.textContent = "Save Shop";
+        document.getElementById('editProviderId').value = "";
+        document.getElementById('locationStatus').textContent = "Not set";
+        document.getElementById('locationStatus').style.color = '#666';
+        document.getElementById('newLat').value = "";
+        document.getElementById('newLng').value = "";
+    }
+}
+
+async function handleProviderSubmit(e) {
+    e.preventDefault();
+    if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'provider')) { alert("Permission denied."); return; }
+    
+    const latInput = document.getElementById('newLat').value;
+    const lngInput = document.getElementById('newLng').value;
+    
+    if (!latInput || !lngInput) { alert("Please pick a location or enter coordinates!"); return; }
+
+    const editId = document.getElementById('editProviderId').value;
+    const fileInput = document.getElementById('providerImage');
+    
+    let imageBase64 = ""; 
+    if (editId) {
+        const existing = providers.find(p => p.id == editId);
+        imageBase64 = existing.image;
+    }
+
+    if (fileInput.files.length > 0) {
+        try { imageBase64 = await convertBase64(fileInput.files[0]); } catch (error) { console.error(error); return; }
+    }
+
+    const providerData = {
+        id: editId || null,
+        ownerId: currentUser.id,
+        name: document.getElementById('providerName').value,
+        service: document.getElementById('providerService').value,
+        phone: document.getElementById('providerPhone').value,
+        address: document.getElementById('providerAddress').value,
+        description: document.getElementById('providerDescription').value,
+        openTime: document.getElementById('providerOpenTime').value,
+        closeTime: document.getElementById('providerCloseTime').value,
+        lat: parseFloat(latInput),
+        lng: parseFloat(lngInput),
+        rating: 0, 
+        reviews: 0,
+        userReviews: [],
+        image: imageBase64
+    };
+
+    try {
+        const response = await fetch('/api/shops', {
+            method: 'POST',
+            body: JSON.stringify(providerData)
+        });
+        
+        if (response.ok) {
+            alert("Shop Saved to Cloud!");
+            closeAddProviderModal();
+            loadData(); 
+        } else {
+            alert("Error saving shop.");
+        }
+    } catch (e) {
+        console.error(e);
+        alert("Network error.");
+    }
+}
+
+function editCurrentProvider() {
+    if (!currentDetailId) return;
+    const provider = providers.find(p => p.id === currentDetailId);
+    if(provider) {
+        document.getElementById('providerDetailsModal').style.display = 'none';
+        openAddProviderModal(true, provider);
+    }
+}
+
+let currentDetailId = null;
+function showProviderDetails(providerId) {
+    currentDetailId = providerId;
+    const provider = providers.find(p => p.id === providerId);
+    if (!provider) return;
+    document.getElementById('detailName').textContent = provider.name;
+    document.getElementById('detailService').textContent = getServiceDisplayName(provider.service);
+    document.getElementById('detailPhone').textContent = provider.phone;
+    document.getElementById('detailAddress').textContent = provider.address;
+    
+    const isOpen = isShopOpen(provider.openTime, provider.closeTime);
+    const timingText = (provider.openTime && provider.closeTime) ? `${provider.openTime} - ${provider.closeTime}` : "No timings";
+    document.getElementById('detailTiming').textContent = timingText;
+    const badge = document.getElementById('detailStatusBadge');
+    badge.textContent = isOpen ? "Open Now" : "Closed";
+    badge.className = `status-badge ${isOpen ? 'status-open' : 'status-closed'}`;
+
+    const imgContainer = document.getElementById('detailImageContainer');
+    if (provider.image) { document.getElementById('detailImage').src = provider.image; imgContainer.style.display = 'block'; } else { imgContainer.style.display = 'none'; }
+    const stars = '★'.repeat(Math.floor(provider.rating)) + '☆'.repeat(5 - Math.floor(provider.rating));
+    document.getElementById('detailRating').innerHTML = stars;
+    document.getElementById('detailRatingValue').textContent = `(${provider.rating} / 5)`;
+    renderReviews(provider.userReviews);
+    
+    const reviewSection = document.getElementById('reviewSection');
+    const loginMsg = document.getElementById('loginToReviewMsg');
+    
+    if (currentUser && (currentUser.role === 'user' || currentUser.role === 'admin')) { reviewSection.style.display = 'block'; loginMsg.style.display = 'none'; }
+    else if (currentUser && currentUser.role === 'provider') { reviewSection.style.display = 'none'; loginMsg.style.display = 'none'; }
+    else { reviewSection.style.display = 'none'; loginMsg.style.display = 'block'; }
+
+    const ownerActions = document.getElementById('ownerActions');
+    
+    const isOwner = currentUser && (provider.ownerId == currentUser.id);
+    const isAdmin = currentUser && (currentUser.role === 'admin');
+    
+    if (isOwner || isAdmin) { 
+        ownerActions.style.display = 'flex'; 
+    } else { 
+        ownerActions.style.display = 'none'; 
+    }
+
+    document.getElementById('reviewText').value = "";
+    updateStarVisuals(0);
+    document.getElementById('providerDetailsModal').style.display = 'block';
+}
+
+function submitReview() {
+    alert("Review submission logic needs API update. Feature pending.");
+}
+
+function deleteCurrentProvider() {
+    if (!currentDetailId) return;
+    adminDeleteShop(currentDetailId);
+}
+
+function resetMapView() {
+    searchAnchor = { ...DEFAULT_CENTER };
+    userLocation = null;
+    if (routingControl) map.removeControl(routingControl);
+    if (window.userMarker) {
+        map.removeLayer(window.userMarker);
+        window.userMarker = null; 
+    }
+    
+    if (liveTrackingId) {
+        navigator.geolocation.clearWatch(liveTrackingId);
+        liveTrackingId = null;
+    } 
+    
+    const modeDiv = document.getElementById('routeModeControls');
+    if (modeDiv) modeDiv.remove();
+
+    const sidebar = document.querySelector('.sidebar');
+    if (sidebar) sidebar.classList.remove('expanded');
+
+    map.setView([DEFAULT_CENTER.lat, DEFAULT_CENTER.lng], 16);
+    document.getElementById('searchRadius').value = 1;
+    document.getElementById('radiusValue').textContent = "1 km";
+    document.getElementById('serviceType').value = "all";
+    document.getElementById('ratingFilter').value = "0";
+    document.getElementById('searchInput').value = ""; // Clear Search
+    document.getElementById('toggleNarratorBtn').style.display = 'none';
+    document.getElementById('toggleRouteInfoBtn').style.display = 'none';
+    updateMapRadius(1);
+    
+    // Clear list and map on reset
+    renderProvidersList([], false);
+    addProvidersToMap([]);
+}
+
+function createPopupContent(provider) {
+    const stars = '★'.repeat(Math.floor(provider.rating)) + '☆'.repeat(5 - Math.floor(provider.rating));
+    const imgHtml = (provider.image) ? `<div class="popup-image"><img src="${provider.image}"></div>` : '';
+    return `<div class="popup-content">${imgHtml}<h3>${provider.name}</h3><div class="popup-rating">${stars} (${provider.rating})</div><div class="popup-service"><i class="fas fa-tools"></i> ${getServiceDisplayName(provider.service)}</div><div class="popup-actions"><button class="popup-btn primary" onclick="showProviderDetails(${provider.id})">View Details</button><button class="popup-btn secondary" onclick="routeToShop(${provider.id})"><i class="fas fa-directions"></i> Route</button></div></div>`;
+}
+
+function getServiceDisplayName(serviceType) {
+    const serviceNames = { 
+        'electrician': 'Electrician', 
+        'plumber': 'Plumber', 
+        'mechanic': 'Mechanic', 
+        'carwash': 'Car/Bike Wash',
+        'carpenter': 'Carpenter',
+        'painter': 'Painter',
+        'ac_repair': 'AC Repair',
+        'welder': 'Welder'
+    };
+    return serviceNames[serviceType] || serviceType;
+}
+
+function showProviderOnMap(providerId) {
+    const provider = providers.find(p => p.id === providerId);
+    if (provider) {
+        map.setView([provider.lat, provider.lng], 16);
+        markers.forEach(marker => { if (marker.providerId === providerId) marker.openPopup(); });
+        
+        if (window.innerWidth <= 768) {
+            document.querySelector('.sidebar').classList.remove('expanded');
+        }
+    }
+}
+
+function highlightProviderCard(providerId) {
+    document.querySelectorAll('.provider-card').forEach(card => card.classList.remove('active'));
+    const activeCard = document.querySelector(`.provider-card[data-id="${providerId}"]`);
+    if (activeCard) {
+        activeCard.classList.add('active');
+        activeCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+}
+
+function setBasemap(layerName) {
+    if (currentLayer === layerName) return; 
+    if (layerName === 'osm') {
+        if (map.hasLayer(satelliteLayer)) map.removeLayer(satelliteLayer);
+        map.addLayer(osmLayer);
+        currentLayer = 'osm';
+        document.getElementById('setOsmMap').classList.add('active');
+        document.getElementById('setSatelliteMap').classList.remove('active');
+    } else {
+        if (map.hasLayer(osmLayer)) map.removeLayer(osmLayer);
+        map.addLayer(satelliteLayer);
+        currentLayer = 'satellite';
+        document.getElementById('setOsmMap').classList.remove('active');
+        document.getElementById('setSatelliteMap').classList.add('active');
+    }
+}
+
+// NOTE: performSearch is now mostly handled by applyFilters but kept for button click compatibility
+function performSearch() {
+    applyFilters();
+}
+
+function toggleLocationPicker() {
+    isPickingLocation = true;
+    document.getElementById('addProviderModal').style.display = 'none';
+    document.getElementById('locationPickerMessage').style.display = 'block';
+    document.body.style.cursor = 'crosshair';
+}
+
+function confirmLocationPick(latlng) {
+    document.getElementById('newLat').value = latlng.lat.toFixed(6);
+    document.getElementById('newLng').value = latlng.lng.toFixed(6);
+    document.getElementById('locationStatus').textContent = `${latlng.lat.toFixed(4)}, ${latlng.lng.toFixed(4)}`;
+    document.getElementById('locationStatus').style.color = "green";
+    if (tempMarker) map.removeLayer(tempMarker);
+    tempMarker = L.marker(latlng).addTo(map).bindPopup("New Shop Location").openPopup();
+    isPickingLocation = false;
+    document.body.style.cursor = 'default';
+    document.getElementById('locationPickerMessage').style.display = 'none';
+    document.getElementById('addProviderModal').style.display = 'block';
+}
+
+function closeAddProviderModal() {
+    document.getElementById('addProviderModal').style.display = 'none';
+    document.getElementById('providerForm').reset();
+    document.getElementById('locationStatus').textContent = "Not set";
+    document.getElementById('locationStatus').style.color = "#666";
+    if (tempMarker) map.removeLayer(tempMarker);
+}
+
+function renderReviews(reviewsArr) {
+    const list = document.getElementById('reviewsList');
+    list.innerHTML = "";
+    if(!reviewsArr || reviewsArr.length === 0) { list.innerHTML = "<p style='color:#777; font-style:italic;'>No reviews yet.</p>"; return; }
+    reviewsArr.forEach(r => {
+        const item = document.createElement('div');
+        item.className = 'review-item';
+        item.innerHTML = `<div class="review-header"><strong>${r.user}</strong><span style="color:#fbbf24;">${'★'.repeat(r.rating)}</span></div><div class="review-text">${r.text}</div>`;
+        list.appendChild(item);
+    });
+}
+
+function updateStarVisuals(rating) {
+    document.querySelectorAll('.rating-stars .star').forEach(star => {
+        const starRating = parseInt(star.getAttribute('data-rating'));
+        if (starRating <= rating) star.classList.add('active');
+        else star.classList.remove('active');
+    });
+}
+
+// --- REQ 6: INTELLIGENT CHATBOT (GREATLY EXPANDED) ---
+
+function initChatbot() {
+    const toggleBtn = document.getElementById('chatbotToggle');
+    const chatWindow = document.getElementById('chatWindow');
+    const closeBtn = document.getElementById('closeChatBtn');
+    const sendBtn = document.getElementById('sendChatBtn');
+    const input = document.getElementById('chatInput');
+
+    toggleBtn.addEventListener('click', () => {
+        chatWindow.classList.toggle('open');
+        if (chatWindow.classList.contains('open')) {
+            if (document.getElementById('chatMessages').children.length === 0) {
+                appendBotMessage("Hi! I'm ServiceBot. I can help you use this app. Try asking 'How do I add a shop?' or 'What does the locate button do?'.");
+            }
+        }
+    });
+
+    closeBtn.addEventListener('click', () => chatWindow.classList.remove('open'));
+    
+    const handleUserSend = async () => {
+        const text = input.value.trim();
+        if (!text) return;
+        appendUserMessage(text);
+        input.value = '';
+
+        setTimeout(() => {
+            const response = processChatCommand(text.toLowerCase());
+            appendBotMessage(response);
+        }, 500);
+    };
+
+    sendBtn.addEventListener('click', handleUserSend);
+    input.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleUserSend(); });
+}
+
+function appendUserMessage(text) {
+    const div = document.createElement('div');
+    div.className = 'message-bubble user-msg';
+    div.textContent = text;
+    const container = document.getElementById('chatMessages');
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+}
+
+function appendBotMessage(text) {
+    const div = document.createElement('div');
+    div.className = 'message-bubble bot-msg';
+    div.innerHTML = text.replace(/\n/g, '<br>');
+    const container = document.getElementById('chatMessages');
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+}
+
+function processChatCommand(cmd) {
+    // 1. ADMIN & ACCOUNTS
+    if (/admin/.test(cmd)) return "The **Admin Panel** (orange button) is for authorized users to manage data and view system stats. It requires an 'admin' role login.";
+    if (/login|sign in/.test(cmd)) return "Click the **Login** button at the top right. You can log in as a User or Shop Provider.";
+    if (/register|signup|account/.test(cmd)) return "Click **Register** to create a new account. Choose 'Service Provider' if you want to list your shop, or 'User' if you want to write reviews.";
+    if (/forgot|password/.test(cmd)) return "In the Login screen, click **Forgot Password?**. You will need to answer your security question to recover it.";
+
+    // 2. MAP CONTROLS
+    if (/reset|compress|refresh/.test(cmd)) return "The **Reset Map** button (compress arrows) clears the map, removes routes, and centers the view back to Gulberg.";
+    if (/locate|location button|arrow|gps/.test(cmd)) return "The **Locate Me** button (arrow icon) uses GPS to find your current location and centers the map on you.";
+    if (/satellite|view|osm|street/.test(cmd)) return "Use the Map Layer buttons (right side) to switch between **Street View** (simple map) and **Satellite View** (real imagery).";
+    
+    // 3. SEARCH & FILTERS (Modified for new logic)
+    if (/search|find|looking for/.test(cmd)) return "Type in the Search Bar (e.g., 'Carpenter'). I will suggest categories or specific shops. Click a suggestion to filter the map.";
+    if (/filter|radius|slider/.test(cmd)) return "Use the **Filter Sidebar** (left) to select a Service Type (like Plumber), a Minimum Rating, or adjust the **Search Radius** (0.5km to 5km).";
+    if (/empty|no shops/.test(cmd)) return "The map starts empty to save data. Please select a service from the dropdown or type in the search bar to see shops.";
+
+    // 4. ROUTING & NAVIGATION
+    if (/route|navigate|directions/.test(cmd)) return "To get directions: \n1. Click a Shop on the map or list.\n2. Click 'View Details'.\n3. Click **Route (Me -> Shop)**.\nI will draw the path and give instructions.";
+    if (/narrator|voice/.test(cmd)) return "Once a route is active, click the **Speaker Icon** on the right to hear turn-by-turn voice instructions.";
+    if (/walking|cycling|driving/.test(cmd)) return "When a route is shown, you can switch modes (Walking, Cycling, Driving) using the icons at the top right of the map.";
+
+    // 5. SERVICES
+    if (/carpenter/.test(cmd)) return "Select 'Carpenter' in the dropdown or type 'c' in the search bar to find woodworkers.";
+    if (/electrician/.test(cmd)) return "Select 'Electrician' to find power repair services.";
+    if (/plumber/.test(cmd)) return "Select 'Plumber' to find water/pipe repair services.";
+    if (/mechanic/.test(cmd)) return "Select 'Mechanic' for car or bike repairs.";
+
+    // 6. LAYERS
+    if (/punjab|layer|geoserver/.test(cmd)) return "If you are an Admin, use the Filter panel to load special GeoServer layers like the **Punjab Boundary** or **Shop Data** overlays.";
+
+    // 7. GENERAL
+    if (/hi|hello/.test(cmd)) return "Hello! I am your intelligent WebGIS assistant. Ask me anything about the app!";
+    if (/thank/.test(cmd)) return "You're welcome! Happy searching.";
+
+    return "I'm not sure about that. Try asking about 'Filters', 'Routing', 'Login', or specific buttons like 'Locate Me'.";
+}
+
+// ... [Geoserver Layer Functions, Admin List, and Exports remain unchanged below] ...
 
 function openAdminPanel() {
     document.getElementById('adminTotalUsers').textContent = "Click to View";
@@ -734,497 +1343,6 @@ function locateUser(callback) {
     );
 }
 
-function applyFilters() {
-    const serviceType = document.getElementById('serviceType').value;
-    const minRating = parseFloat(document.getElementById('ratingFilter').value);
-    const radiusKm = parseFloat(document.getElementById('searchRadius').value);
-    const centerPoint = L.latLng(searchAnchor.lat, searchAnchor.lng);
-
-    const filtered = providers.filter(p => {
-        const matchService = (serviceType === 'all') || (p.service === serviceType);
-        const matchRating = (p.rating >= minRating);
-        const providerPoint = L.latLng(p.lat, p.lng);
-        const distanceMeters = centerPoint.distanceTo(providerPoint);
-        const matchDistance = distanceMeters <= (radiusKm * 1000);
-        return matchService && matchRating && matchDistance;
-    });
-    renderProvidersList(filtered);
-    addProvidersToMap(filtered);
-}
-
-function renderProvidersList(listToRender) {
-    const container = document.getElementById('providersContainer');
-    container.innerHTML = '';
-    if(listToRender.length === 0) { container.innerHTML = "<p style='text-align:center; color:#666;'>No shops found.</p>"; return; }
-    listToRender.forEach(provider => {
-         const card = document.createElement('div');
-         card.className = 'provider-card';
-         card.setAttribute('data-id', provider.id);
-         const stars = '★'.repeat(Math.floor(provider.rating)) + '☆'.repeat(5 - Math.floor(provider.rating));
-         
-         const isOpen = isShopOpen(provider.openTime, provider.closeTime);
-         const statusClass = isOpen ? 'status-open' : 'status-closed';
-         const statusText = isOpen ? 'Open' : 'Closed';
-         
-         card.innerHTML = `
-            <div class="provider-header"><div><div class="provider-name">${provider.name}</div><span class="provider-service">${getServiceDisplayName(provider.service)}</span></div></div>
-            <div class="provider-rating"><span class="stars">${stars}</span><span>${provider.rating}</span><span class="status-badge ${statusClass}">${statusText}</span></div>
-            <div class="provider-address"><i class="fas fa-map-marker-alt"></i> ${provider.address}</div>`;
-         card.addEventListener('click', function() { showProviderOnMap(provider.id); highlightProviderCard(provider.id); });
-         container.appendChild(card);
-    });
-}
-
-function addProvidersToMap(listToRender) {
-    markers.forEach(marker => map.removeLayer(marker));
-    markers = [];
-    
-    listToRender.forEach(provider => {
-        const marker = L.marker([provider.lat, provider.lng]).addTo(map).bindPopup(createPopupContent(provider));
-        marker.providerId = provider.id;
-        marker.on('click', function() { highlightProviderCard(provider.id); });
-        markers.push(marker);
-    });
-}
-
-function isShopOpen(open, close) {
-    if(!open || !close) return false;
-    const now = new Date();
-    const currentMins = now.getHours() * 60 + now.getMinutes();
-    
-    const [openH, openM] = open.split(':').map(Number);
-    const [closeH, closeM] = close.split(':').map(Number);
-    
-    const startMins = openH * 60 + openM;
-    const endMins = closeH * 60 + closeM;
-    
-    return currentMins >= startMins && currentMins <= endMins;
-}
-
-function openAddProviderModal(editMode = false, provider = null) {
-    const modal = document.getElementById('addProviderModal');
-    const form = document.getElementById('providerForm');
-    const title = document.getElementById('modalTitleProvider');
-    const btn = document.getElementById('saveProviderBtn');
-    
-    modal.style.display = 'block';
-    form.reset();
-    
-    if (editMode && provider) {
-        title.textContent = "Modify Shop";
-        btn.textContent = "Update Shop";
-        document.getElementById('editProviderId').value = provider.id;
-        document.getElementById('providerName').value = provider.name;
-        document.getElementById('providerService').value = provider.service;
-        document.getElementById('providerPhone').value = provider.phone;
-        document.getElementById('providerAddress').value = provider.address;
-        document.getElementById('providerDescription').value = provider.description || '';
-        document.getElementById('providerOpenTime').value = provider.openTime || '';
-        document.getElementById('providerCloseTime').value = provider.closeTime || '';
-        document.getElementById('newLat').value = provider.lat;
-        document.getElementById('newLng').value = provider.lng;
-        document.getElementById('locationStatus').textContent = `${provider.lat.toFixed(4)}, ${provider.lng.toFixed(4)}`;
-        document.getElementById('locationStatus').style.color = 'green';
-    } else {
-        title.textContent = "Add Service Provider";
-        btn.textContent = "Save Shop";
-        document.getElementById('editProviderId').value = "";
-        document.getElementById('locationStatus').textContent = "Not set";
-        document.getElementById('locationStatus').style.color = '#666';
-        document.getElementById('newLat').value = "";
-        document.getElementById('newLng').value = "";
-    }
-}
-
-async function handleProviderSubmit(e) {
-    e.preventDefault();
-    if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'provider')) { alert("Permission denied."); return; }
-    
-    const latInput = document.getElementById('newLat').value;
-    const lngInput = document.getElementById('newLng').value;
-    
-    if (!latInput || !lngInput) { alert("Please pick a location or enter coordinates!"); return; }
-
-    const editId = document.getElementById('editProviderId').value;
-    const fileInput = document.getElementById('providerImage');
-    
-    let imageBase64 = ""; 
-    if (editId) {
-        const existing = providers.find(p => p.id == editId);
-        imageBase64 = existing.image;
-    }
-
-    if (fileInput.files.length > 0) {
-        try { imageBase64 = await convertBase64(fileInput.files[0]); } catch (error) { console.error(error); return; }
-    }
-
-    const providerData = {
-        id: editId || null,
-        ownerId: currentUser.id,
-        name: document.getElementById('providerName').value,
-        service: document.getElementById('providerService').value,
-        phone: document.getElementById('providerPhone').value,
-        address: document.getElementById('providerAddress').value,
-        description: document.getElementById('providerDescription').value,
-        openTime: document.getElementById('providerOpenTime').value,
-        closeTime: document.getElementById('providerCloseTime').value,
-        lat: parseFloat(latInput),
-        lng: parseFloat(lngInput),
-        rating: 0, 
-        reviews: 0,
-        userReviews: [],
-        image: imageBase64
-    };
-
-    try {
-        const response = await fetch('/api/shops', {
-            method: 'POST',
-            body: JSON.stringify(providerData)
-        });
-        
-        if (response.ok) {
-            alert("Shop Saved to Cloud!");
-            closeAddProviderModal();
-            loadData(); 
-        } else {
-            alert("Error saving shop.");
-        }
-    } catch (e) {
-        console.error(e);
-        alert("Network error.");
-    }
-}
-
-function editCurrentProvider() {
-    if (!currentDetailId) return;
-    const provider = providers.find(p => p.id === currentDetailId);
-    if(provider) {
-        document.getElementById('providerDetailsModal').style.display = 'none';
-        openAddProviderModal(true, provider);
-    }
-}
-
-let currentDetailId = null;
-function showProviderDetails(providerId) {
-    currentDetailId = providerId;
-    const provider = providers.find(p => p.id === providerId);
-    if (!provider) return;
-    document.getElementById('detailName').textContent = provider.name;
-    document.getElementById('detailService').textContent = getServiceDisplayName(provider.service);
-    document.getElementById('detailPhone').textContent = provider.phone;
-    document.getElementById('detailAddress').textContent = provider.address;
-    
-    const isOpen = isShopOpen(provider.openTime, provider.closeTime);
-    const timingText = (provider.openTime && provider.closeTime) ? `${provider.openTime} - ${provider.closeTime}` : "No timings";
-    document.getElementById('detailTiming').textContent = timingText;
-    const badge = document.getElementById('detailStatusBadge');
-    badge.textContent = isOpen ? "Open Now" : "Closed";
-    badge.className = `status-badge ${isOpen ? 'status-open' : 'status-closed'}`;
-
-    const imgContainer = document.getElementById('detailImageContainer');
-    if (provider.image) { document.getElementById('detailImage').src = provider.image; imgContainer.style.display = 'block'; } else { imgContainer.style.display = 'none'; }
-    const stars = '★'.repeat(Math.floor(provider.rating)) + '☆'.repeat(5 - Math.floor(provider.rating));
-    document.getElementById('detailRating').innerHTML = stars;
-    document.getElementById('detailRatingValue').textContent = `(${provider.rating} / 5)`;
-    renderReviews(provider.userReviews);
-    
-    const reviewSection = document.getElementById('reviewSection');
-    const loginMsg = document.getElementById('loginToReviewMsg');
-    
-    if (currentUser && (currentUser.role === 'user' || currentUser.role === 'admin')) { reviewSection.style.display = 'block'; loginMsg.style.display = 'none'; }
-    else if (currentUser && currentUser.role === 'provider') { reviewSection.style.display = 'none'; loginMsg.style.display = 'none'; }
-    else { reviewSection.style.display = 'none'; loginMsg.style.display = 'block'; }
-
-    const ownerActions = document.getElementById('ownerActions');
-    
-    const isOwner = currentUser && (provider.ownerId == currentUser.id);
-    const isAdmin = currentUser && (currentUser.role === 'admin');
-    
-    if (isOwner || isAdmin) { 
-        ownerActions.style.display = 'flex'; 
-    } else { 
-        ownerActions.style.display = 'none'; 
-    }
-
-    document.getElementById('reviewText').value = "";
-    updateStarVisuals(0);
-    document.getElementById('providerDetailsModal').style.display = 'block';
-}
-
-function submitReview() {
-    alert("Review submission logic needs API update. Feature pending.");
-}
-
-function deleteCurrentProvider() {
-    if (!currentDetailId) return;
-    adminDeleteShop(currentDetailId);
-}
-
-function resetMapView() {
-    searchAnchor = { ...DEFAULT_CENTER };
-    userLocation = null;
-    if (routingControl) map.removeControl(routingControl);
-    if (window.userMarker) {
-        map.removeLayer(window.userMarker);
-        window.userMarker = null; 
-    }
-    
-    if (liveTrackingId) {
-        navigator.geolocation.clearWatch(liveTrackingId);
-        liveTrackingId = null;
-    } 
-    
-    const modeDiv = document.getElementById('routeModeControls');
-    if (modeDiv) modeDiv.remove();
-
-    const sidebar = document.querySelector('.sidebar');
-    if (sidebar) sidebar.classList.remove('expanded');
-
-    map.setView([DEFAULT_CENTER.lat, DEFAULT_CENTER.lng], 16);
-    document.getElementById('searchRadius').value = 1;
-    document.getElementById('radiusValue').textContent = "1 km";
-    document.getElementById('serviceType').value = "all";
-    document.getElementById('ratingFilter').value = "0";
-    document.getElementById('toggleNarratorBtn').style.display = 'none';
-    document.getElementById('toggleRouteInfoBtn').style.display = 'none';
-    updateMapRadius(1);
-    applyFilters();
-}
-
-function createPopupContent(provider) {
-    const stars = '★'.repeat(Math.floor(provider.rating)) + '☆'.repeat(5 - Math.floor(provider.rating));
-    const imgHtml = (provider.image) ? `<div class="popup-image"><img src="${provider.image}"></div>` : '';
-    return `<div class="popup-content">${imgHtml}<h3>${provider.name}</h3><div class="popup-rating">${stars} (${provider.rating})</div><div class="popup-service"><i class="fas fa-tools"></i> ${getServiceDisplayName(provider.service)}</div><div class="popup-actions"><button class="popup-btn primary" onclick="showProviderDetails(${provider.id})">View Details</button><button class="popup-btn secondary" onclick="routeToShop(${provider.id})"><i class="fas fa-directions"></i> Route</button></div></div>`;
-}
-
-function getServiceDisplayName(serviceType) {
-    const serviceNames = { 
-        'electrician': 'Electrician', 
-        'plumber': 'Plumber', 
-        'mechanic': 'Mechanic', 
-        'carwash': 'Car/Bike Wash',
-        'carpenter': 'Carpenter',
-        'painter': 'Painter',
-        'ac_repair': 'AC Repair',
-        'welder': 'Welder'
-    };
-    return serviceNames[serviceType] || serviceType;
-}
-
-function showProviderOnMap(providerId) {
-    const provider = providers.find(p => p.id === providerId);
-    if (provider) {
-        map.setView([provider.lat, provider.lng], 16);
-        markers.forEach(marker => { if (marker.providerId === providerId) marker.openPopup(); });
-        
-        if (window.innerWidth <= 768) {
-            document.querySelector('.sidebar').classList.remove('expanded');
-        }
-    }
-}
-
-function highlightProviderCard(providerId) {
-    document.querySelectorAll('.provider-card').forEach(card => card.classList.remove('active'));
-    const activeCard = document.querySelector(`.provider-card[data-id="${providerId}"]`);
-    if (activeCard) {
-        activeCard.classList.add('active');
-        activeCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-}
-
-function setBasemap(layerName) {
-    if (currentLayer === layerName) return; 
-    if (layerName === 'osm') {
-        if (map.hasLayer(satelliteLayer)) map.removeLayer(satelliteLayer);
-        map.addLayer(osmLayer);
-        currentLayer = 'osm';
-        document.getElementById('setOsmMap').classList.add('active');
-        document.getElementById('setSatelliteMap').classList.remove('active');
-    } else {
-        if (map.hasLayer(osmLayer)) map.removeLayer(osmLayer);
-        map.addLayer(satelliteLayer);
-        currentLayer = 'satellite';
-        document.getElementById('setOsmMap').classList.remove('active');
-        document.getElementById('setSatelliteMap').classList.add('active');
-    }
-}
-
-function performSearch() {
-    const query = document.getElementById('searchInput').value.toLowerCase().trim();
-    if (query) {
-        const filtered = providers.filter(provider => provider.name.toLowerCase().includes(query) || provider.service.toLowerCase().includes(query));
-        renderProvidersList(filtered);
-        addProvidersToMap(filtered);
-        if (filtered.length > 0) {
-            map.setView([filtered[0].lat, filtered[0].lng], 16);
-            highlightProviderCard(filtered[0].id);
-            if (window.innerWidth <= 768) document.querySelector('.sidebar').classList.remove('expanded');
-        }
-    }
-}
-
-function toggleLocationPicker() {
-    isPickingLocation = true;
-    document.getElementById('addProviderModal').style.display = 'none';
-    document.getElementById('locationPickerMessage').style.display = 'block';
-    document.body.style.cursor = 'crosshair';
-}
-
-function confirmLocationPick(latlng) {
-    document.getElementById('newLat').value = latlng.lat.toFixed(6);
-    document.getElementById('newLng').value = latlng.lng.toFixed(6);
-    document.getElementById('locationStatus').textContent = `${latlng.lat.toFixed(4)}, ${latlng.lng.toFixed(4)}`;
-    document.getElementById('locationStatus').style.color = "green";
-    if (tempMarker) map.removeLayer(tempMarker);
-    tempMarker = L.marker(latlng).addTo(map).bindPopup("New Shop Location").openPopup();
-    isPickingLocation = false;
-    document.body.style.cursor = 'default';
-    document.getElementById('locationPickerMessage').style.display = 'none';
-    document.getElementById('addProviderModal').style.display = 'block';
-}
-
-function closeAddProviderModal() {
-    document.getElementById('addProviderModal').style.display = 'none';
-    document.getElementById('providerForm').reset();
-    document.getElementById('locationStatus').textContent = "Not set";
-    document.getElementById('locationStatus').style.color = "#666";
-    if (tempMarker) map.removeLayer(tempMarker);
-}
-
-function renderReviews(reviewsArr) {
-    const list = document.getElementById('reviewsList');
-    list.innerHTML = "";
-    if(!reviewsArr || reviewsArr.length === 0) { list.innerHTML = "<p style='color:#777; font-style:italic;'>No reviews yet.</p>"; return; }
-    reviewsArr.forEach(r => {
-        const item = document.createElement('div');
-        item.className = 'review-item';
-        item.innerHTML = `<div class="review-header"><strong>${r.user}</strong><span style="color:#fbbf24;">${'★'.repeat(r.rating)}</span></div><div class="review-text">${r.text}</div>`;
-        list.appendChild(item);
-    });
-}
-
-function updateStarVisuals(rating) {
-    document.querySelectorAll('.rating-stars .star').forEach(star => {
-        const starRating = parseInt(star.getAttribute('data-rating'));
-        if (starRating <= rating) star.classList.add('active');
-        else star.classList.remove('active');
-    });
-}
-
-// --- INTELLIGENT CHATBOT (UPDATED) ---
-
-function initChatbot() {
-    const toggleBtn = document.getElementById('chatbotToggle');
-    const chatWindow = document.getElementById('chatWindow');
-    const closeBtn = document.getElementById('closeChatBtn');
-    const sendBtn = document.getElementById('sendChatBtn');
-    const input = document.getElementById('chatInput');
-
-    toggleBtn.addEventListener('click', () => {
-        chatWindow.classList.toggle('open');
-        if (chatWindow.classList.contains('open')) {
-            if (document.getElementById('chatMessages').children.length === 0) {
-                appendBotMessage("Hi! I'm ServiceBot. Ask me about any button or feature on the screen!");
-            }
-        }
-    });
-
-    closeBtn.addEventListener('click', () => chatWindow.classList.remove('open'));
-    
-    const handleUserSend = async () => {
-        const text = input.value.trim();
-        if (!text) return;
-        appendUserMessage(text);
-        input.value = '';
-
-        setTimeout(() => {
-            const response = processChatCommand(text.toLowerCase());
-            appendBotMessage(response);
-        }, 500);
-    };
-
-    sendBtn.addEventListener('click', handleUserSend);
-    input.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleUserSend(); });
-}
-
-function appendUserMessage(text) {
-    const div = document.createElement('div');
-    div.className = 'message-bubble user-msg';
-    div.textContent = text;
-    const container = document.getElementById('chatMessages');
-    container.appendChild(div);
-    container.scrollTop = container.scrollHeight;
-}
-
-function appendBotMessage(text) {
-    const div = document.createElement('div');
-    div.className = 'message-bubble bot-msg';
-    div.innerHTML = text.replace(/\n/g, '<br>');
-    const container = document.getElementById('chatMessages');
-    container.appendChild(div);
-    container.scrollTop = container.scrollHeight;
-}
-
-function processChatCommand(cmd) {
-    // 1. BUTTON & UI EXPLANATIONS
-    if (/apply filter/.test(cmd)) {
-        return "The **Apply Filters** button updates the list of shops and the map markers based on the Service Type, Rating, and Radius you selected.";
-    }
-    if (/radius|slider|km/.test(cmd)) {
-        return "The **Search Radius** slider lets you choose how far to search. It ranges from 0.5 km to 5 km around your current location.";
-    }
-    if (/locate|location button|arrow/.test(cmd)) {
-        return "The **Locate Me** button (arrow icon) finds your exact GPS position, centers the map on you, and shows a popup with your coordinates that you can copy.";
-    }
-    if (/reset|compress|refresh/.test(cmd)) {
-        return "The **Reset Map** button clears any active routes and moves the camera back to the default Gulberg area.";
-    }
-    if (/satellite|view|osm/.test(cmd)) {
-        return "You can switch between **Street View** (standard map) and **Satellite View** (real imagery) using the map buttons on the right.";
-    }
-    if (/narrator|voice|speak/.test(cmd)) {
-        return "The **Narrator** button (speaker icon) reads out driving directions loud so you don't have to look at the screen.";
-    }
-    if (/route info|list icon/.test(cmd)) {
-        return "The **Route Info** button (list icon) toggles the text-based turn-by-turn instructions window.";
-    }
-    if (/admin panel|geoserver|layer/.test(cmd)) {
-        return "The **Admin Panel** allows authorized users to load special map layers from GeoServer (like Punjab Boundary or Shop Data).";
-    }
-
-    // 2. SEARCHING SERVICES
-    if (/find|search|show|where is|looking for/.test(cmd)) {
-        if (/carpenter/.test(cmd)) return "I have filtered the map for **Carpenters**. Look for wood-work specialists in the list.";
-        if (/plumber/.test(cmd)) return "Showing **Plumbers** near you.";
-        if (/electrician/.test(cmd)) return "Showing **Electricians** in your area.";
-        if (/mechanic|auto/.test(cmd)) return "Showing **Mechanic** shops.";
-        if (/ac|hvac/.test(cmd)) return "Showing **AC Repair** services.";
-        if (/painter/.test(cmd)) return "Showing **Painters**.";
-        if (/welder/.test(cmd)) return "Showing **Welders**.";
-        
-        return "You can use the Search Bar or Filter Dropdown to find Plumbers, Electricians, Carpenters, Painters, and more.";
-    }
-
-    // 3. GENERAL HELP
-    if (/hi|hello|help/.test(cmd)) {
-        return "Hello! I can explain any button on the screen or help you find a shop. Try asking 'What does the locate button do?' or 'Find a carpenter'.";
-    }
-
-    // 4. ROUTING
-    if (/route|navigate/.test(cmd)) {
-        return "To navigate: Click a shop marker -> Click 'View Details' -> Click 'Route'. I will draw the path and show instructions.";
-    }
-    
-    // 5. REGISTRATION
-    if (/register|signup/.test(cmd)) {
-        return "Use the **Register** button in the top header to create a new account (User or Provider).";
-    }
-
-    if (/thank/.test(cmd)) return "You're welcome!";
-
-    return "I am not sure about that. Try asking about a specific button (e.g., 'What is the radius slider?') or a service.";
-}
-
 // --- GEOSERVER LAYERS LOGIC ---
 
 function togglePunjabLayer() {
@@ -1256,7 +1374,6 @@ function togglePunjabLayer() {
     }
 }
 
-// --- NEW FUNCTION: Toggle Second Layer ---
 function toggleNewLayer() {
     const btn = document.getElementById('toggleNewLayerBtn');
 

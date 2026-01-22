@@ -77,13 +77,12 @@ body {
     margin-right: 5px;
 }
 
-/* REQ 3: Updated Search Bar to support suggestions */
+/* Search Bar & Suggestions */
 .search-bar { position: relative; order: 1; display: flex; flex: 1; max-width: 500px; min-width: 250px; margin: 0 20px; }
 .search-bar input { flex: 1; padding: 0.75rem 1rem; border: none; border-radius: 25px 0 0 25px; font-size: 1rem; outline: none; }
 .search-bar button { padding: 0.75rem 1.5rem; border: none; border-radius: 0 25px 25px 0; background: #4a5568; color: white; cursor: pointer; transition: background 0.3s; }
 .search-bar button:hover { background: #2d3748; }
 
-/* REQ 3: Search Suggestions Styling */
 .search-suggestions {
     position: absolute;
     top: 100%;
@@ -93,7 +92,7 @@ body {
     border-radius: 0 0 15px 15px;
     box-shadow: 0 5px 15px rgba(0,0,0,0.15);
     z-index: 1200;
-    display: none; /* Hidden by default */
+    display: none;
     max-height: 300px;
     overflow-y: auto;
     border: 1px solid #e2e8f0;
@@ -107,7 +106,6 @@ body {
     justify-content: space-between;
     align-items: center;
 }
-
 .search-suggestion-item:last-child { border-bottom: none; }
 .search-suggestion-item:hover { background-color: #f7fafc; }
 .suggestion-type { font-size: 0.75rem; color: #667eea; font-weight: bold; background: #edf2f7; padding: 2px 6px; border-radius: 4px; }
@@ -155,6 +153,24 @@ body {
 .status-badge { font-size: 0.8rem; padding: 2px 6px; border-radius: 4px; font-weight: bold; margin-left: 10px; }
 .status-open { background: #c6f6d5; color: #22543d; }
 .status-closed { background: #fed7d7; color: #822727; }
+
+/* REQ 2: See More Button Styling */
+.btn-see-more {
+    width: 100%;
+    padding: 10px;
+    background: white;
+    border: 1px solid #667eea;
+    color: #667eea;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    margin-top: 10px;
+}
+.btn-see-more:hover {
+    background: #667eea;
+    color: white;
+}
 
 /* --- MAP AREA --- */
 .map-container { flex: 1; position: relative; }
@@ -334,10 +350,10 @@ body {
         border-radius: 20px 20px 0 0;
         box-shadow: 0 -5px 15px rgba(0,0,0,0.2);
         
-        transform: translateY(calc(100% - 35px)); 
+        /* REQ 3: Changed 35px to 50px so handle is not cut off */
+        transform: translateY(calc(100% - 50px)); 
         transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
         
-        /* REQ 7: Adjusted padding to ensure "Filter Area Shops" is visible below handle */
         padding: 1rem 1.5rem 1.5rem 1.5rem;
     }
 
@@ -352,18 +368,18 @@ body {
         align-items: center;
         width: 100%;
         height: 40px; 
-        position: sticky; /* Keeps it at the top while scrolling */
+        position: sticky; 
         top: 0; 
         z-index: 5000;
         cursor: pointer;
         background: #667eea;
         border-radius: 20px 20px 0 0;
         
-        /* Fixed margins to align properly with new padding */
+        /* Fixed margins */
         margin-left: -1.5rem; 
         width: calc(100% + 3rem); 
         margin-top: -1rem; 
-        margin-bottom: 15px; /* Added spacing below handle */
+        margin-bottom: 15px; 
         box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
     
@@ -379,7 +395,7 @@ body {
         transform: rotate(180deg);
     }
     
-    /* --- ROUTING WINDOW (VERTICAL RECTANGLE, RIGHT ALIGNED) --- */
+    /* --- ROUTING WINDOW --- */
     .route-mode-controls { margin-right: 50px !important; margin-top: 5px !important; }
     
     .leaflet-routing-container { 

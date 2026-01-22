@@ -32,7 +32,7 @@
                         <i class="fas fa-plus"></i> Add Shop
                     </button>
                     
-                    <button id="adminPanelBtn" class="btn-warning" style="display:none;">Admin</button>
+                    <button id="adminPanelBtn" class="btn-warning" style="display:none;">Admin Panel</button>
                     
                     <button id="logoutBtn" class="btn-secondary-light" title="Exit / Logout">
                         <i class="fas fa-sign-out-alt"></i>
@@ -41,8 +41,9 @@
             </div>
 
             <div class="search-bar">
-                <input type="text" id="searchInput" placeholder="Search service (e.g. Carpenter)...">
+                <input type="text" id="searchInput" placeholder="Search service (e.g. Carpenter) or Shop Name..." autocomplete="off">
                 <button id="searchBtn"><i class="fas fa-search"></i></button>
+                <div id="searchSuggestions" class="search-suggestions"></div>
             </div>
             
             <div class="user-actions">
@@ -60,8 +61,7 @@
                     <div class="filter-group">
                         <label for="serviceType">Service Type</label>
                         <select id="serviceType">
-                            <option value="all">All Services</option>
-                            <option value="electrician">Electrician</option>
+                            <option value="all">Select a Service...</option> <option value="electrician">Electrician</option>
                             <option value="plumber">Plumber</option>
                             <option value="mechanic">Mechanic</option>
                             <option value="carwash">Car/Bike Wash</option>
@@ -106,7 +106,11 @@
 
                 <div class="providers-list">
                     <h3>Shops in Area</h3>
-                    <div id="providersContainer"></div>
+                    <div id="providersContainer">
+                        <p style="text-align:center; color:#666; font-style: italic; padding: 10px;">
+                            Please search for a service or apply a filter to view shops.
+                        </p>
+                    </div>
                 </div>
             </aside>
 

@@ -93,9 +93,21 @@ body {
     box-shadow: 0 5px 15px rgba(0,0,0,0.15);
     z-index: 1200;
     display: none;
-    max-height: 300px;
+    max-height: 400px;
     overflow-y: auto;
     border: 1px solid #e2e8f0;
+}
+
+/* REQ 2: Styles for Search Categories Headers */
+.suggestion-header {
+    padding: 8px 15px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #718096;
+    background-color: #f7fafc;
+    border-bottom: 1px solid #edf2f7;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 .search-suggestion-item {
@@ -107,7 +119,7 @@ body {
     align-items: center;
 }
 .search-suggestion-item:last-child { border-bottom: none; }
-.search-suggestion-item:hover { background-color: #f7fafc; }
+.search-suggestion-item:hover { background-color: #ebf4ff; }
 .suggestion-type { font-size: 0.75rem; color: #667eea; font-weight: bold; background: #edf2f7; padding: 2px 6px; border-radius: 4px; }
 .suggestion-text { font-weight: 500; color: #2d3748; }
 
@@ -139,22 +151,7 @@ body {
 .btn-danger { padding: 0.75rem; background: #e53e3e; color: white; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.3s; }
 .btn-danger:hover { background: #c53030; }
 
-/* --- PROVIDER CARDS --- */
-.providers-list { margin-top: 2rem; }
-.provider-card { background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; cursor: pointer; transition: all 0.3s; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-.provider-card:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-color: #667eea; }
-.provider-card.active { border-color: #667eea; background: #f7fafc; }
-.provider-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem; }
-.provider-name { font-weight: 600; color: #2d3748; }
-.provider-service { background: #edf2f7; color: #4a5568; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.8rem; font-weight: 500; }
-.provider-rating { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
-.stars { color: #fbbf24; }
-.provider-address { color: #718096; font-size: 0.9rem; }
-.status-badge { font-size: 0.8rem; padding: 2px 6px; border-radius: 4px; font-weight: bold; margin-left: 10px; }
-.status-open { background: #c6f6d5; color: #22543d; }
-.status-closed { background: #fed7d7; color: #822727; }
-
-/* REQ 2: See More Button Styling */
+/* See More Button */
 .btn-see-more {
     width: 100%;
     padding: 10px;
@@ -276,7 +273,6 @@ body {
 
 /* --- RESPONSIVE MEDIA QUERIES (MOBILE OPTIMIZATIONS) --- */
 
-/* Hide the mobile Add Shop button on desktop screens */
 @media (min-width: 769px) {
     #addProviderBtnMobile { display: none !important; }
 }
@@ -350,7 +346,6 @@ body {
         border-radius: 20px 20px 0 0;
         box-shadow: 0 -5px 15px rgba(0,0,0,0.2);
         
-        /* REQ 3: Changed 35px to 50px so handle is not cut off */
         transform: translateY(calc(100% - 50px)); 
         transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
         
@@ -395,19 +390,28 @@ body {
         transform: rotate(180deg);
     }
     
-    /* --- ROUTING WINDOW --- */
+    /* --- ROUTING WINDOW (MOBILE FIX - REQ 3) --- */
+    /* Ensure instructions are top-right and scrollable */
     .route-mode-controls { margin-right: 50px !important; margin-top: 5px !important; }
     
     .leaflet-routing-container { 
         width: auto !important; 
-        max-width: 650px !important;
-        max-height: 80vh !important;
+        max-width: 250px !important; /* Compact width */
+        max-height: 50vh !important; /* Half screen height */
         font-size: 11px !important; 
+        
+        /* Strict Positioning */
         top: 65px !important; 
-        right: 60px !important; 
+        right: 10px !important; 
         left: auto !important; 
+        bottom: auto !important;
+        
         z-index: 100000 !important;
-        overflow-y: auto !important;
+        overflow-y: auto !important; /* Enable scrolling */
+        pointer-events: auto !important;
+        background: white !important;
+        border-radius: 8px !important;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.3) !important;
     }
 
     /* Modal Adjustments */

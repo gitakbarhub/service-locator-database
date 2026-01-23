@@ -28,11 +28,15 @@
                 <div id="loggedInView" style="display:none;">
                     <span id="welcomeUser">Hi, User</span>
                     
+                    <button id="providerPanelBtn" class="btn-warning" style="display:none; margin-right:5px;">
+                        <i class="fas fa-bell"></i> <span id="reqCount" style="display:none; background:red; color:white; padding:1px 5px; border-radius:50%; font-size:10px;">0</span>
+                    </button>
+
                     <button id="addProviderBtnMobile" class="btn-primary mobile-add-btn" style="display:none;">
                         <i class="fas fa-plus"></i> Add Shop
                     </button>
                     
-                    <button id="adminPanelBtn" class="btn-warning" style="display:none;">Admin Panel</button>
+                    <button id="adminPanelBtn" class="btn-secondary-light" style="display:none;">Admin</button>
                     
                     <button id="logoutBtn" class="btn-secondary-light" title="Exit / Logout">
                         <i class="fas fa-sign-out-alt"></i>
@@ -41,7 +45,7 @@
             </div>
 
             <div class="search-bar">
-                <input type="text" id="searchInput" placeholder="Search service (e.g. Carpenter) or Shop Name..." autocomplete="off">
+                <input type="text" id="searchInput" placeholder="Search service (e.g. Carp...) or Shop Name..." autocomplete="off">
                 <button id="searchBtn"><i class="fas fa-search"></i></button>
                 <div id="searchSuggestions" class="search-suggestions"></div>
             </div>
@@ -64,8 +68,7 @@
                             <option value="all">Select a Service...</option>
                             <option value="electrician">Electrician</option>
                             <option value="plumber">Plumber</option>
-                            <option value="mechanic">Mechanic</option>
-                            <option value="carwash">Car/Bike Wash</option>
+                            <option value="mechanic">Car Mechanic</option> <option value="carwash">Car/Bike Wash</option>
                             <option value="carpenter">Carpenter (Wood Work)</option>
                             <option value="painter">Painter</option>
                             <option value="ac_repair">AC Repair / HVAC</option>
@@ -157,6 +160,20 @@
         <div class="chat-input-area">
             <input type="text" id="chatInput" placeholder="Describe your problem (e.g., 'pipe leak')...">
             <button id="sendChatBtn"><i class="fas fa-paper-plane"></i></button>
+        </div>
+    </div>
+
+    <div id="providerDashboardModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header draggable-header">
+                <h2>Incoming Service Requests</h2>
+                <span class="close">&times;</span>
+            </div>
+            <div style="padding: 20px;">
+                <div id="requestsListContainer">
+                    <p style="color:#666;">No active requests.</p>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -302,7 +319,7 @@
                     <select id="providerService" required>
                         <option value="electrician">Electrician</option>
                         <option value="plumber">Plumber</option>
-                        <option value="mechanic">Mechanic</option>
+                        <option value="mechanic">Car Mechanic</option>
                         <option value="carwash">Car/Bike Wash</option>
                         <option value="carpenter">Carpenter</option>
                         <option value="painter">Painter</option>
@@ -396,7 +413,7 @@
                         <i class="fas fa-directions"></i> Route (Me &rarr; Shop)
                     </button>
                     <button id="requestServiceBtn" class="btn-warning" style="flex:1;">
-                        <i class="fas fa-paper-plane"></i> Request Service (Send Location)
+                        <i class="fas fa-paper-plane"></i> Request Service
                     </button>
                 </div>
                 

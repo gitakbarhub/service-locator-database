@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ServicePro - Local Area Services</title>
+    <title>ServicePro - Local Service Locator</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
@@ -155,7 +155,7 @@
         </div>
         <div id="chatMessages" class="chat-messages"></div>
         <div class="chat-input-area">
-            <input type="text" id="chatInput" placeholder="Ask about buttons, services...">
+            <input type="text" id="chatInput" placeholder="Describe your problem (e.g., 'pipe leak')...">
             <button id="sendChatBtn"><i class="fas fa-paper-plane"></i></button>
         </div>
     </div>
@@ -395,8 +395,8 @@
                     <button id="getDirectionsBtn" class="btn-primary" style="flex:1;">
                         <i class="fas fa-directions"></i> Route (Me &rarr; Shop)
                     </button>
-                    <button id="reverseRouteBtn" class="btn-warning" style="flex:1;">
-                        <i class="fas fa-shuttle-van"></i> Route (Shop &rarr; Me)
+                    <button id="requestServiceBtn" class="btn-warning" style="flex:1;">
+                        <i class="fas fa-paper-plane"></i> Request Service (Send Location)
                     </button>
                 </div>
                 

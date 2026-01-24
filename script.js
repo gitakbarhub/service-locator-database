@@ -1,13 +1,29 @@
-// --- GLOBAL VARIABLES ---
+// Initialize the map variables
 let map;
-let satelliteLayer, osmLayer;
+let satelliteLayer;
+let osmLayer;
+let currentLayer = 'osm';
 let userLocation = null;
-let providers = []; // All data
+let searchAnchor = null; 
+let providers = [];
 let markers = [];
-let currentRequestStatusTimer = null; 
-let currentUser = null; 
-const CURRENT_USER_KEY = 'serviceCurrentUser';
+let searchRadiusCircle = null;
+let isPickingLocation = false;
+let tempMarker = null;
 let routingControl = null;
+let narratorEnabled = false;
+let liveTrackingId = null; 
+let currentRouteProfile = 'driving'; 
+
+// --- API & GEOSERVER VARIABLES ---
+let punjabLayer = null;
+let newLayer = null; 
+const DEFAULT_CENTER = { lat: 31.4880, lng: 74.3430 }; // Gulberg 3 Area
+const CURRENT_USER_KEY = 'serviceCurrentUser';
+let currentUser = null; 
+
+// --- HARDCODED NGROK URL ---
+const NGROK_HOST = "https://elusive-lashonda-unfountained.ngrok-free.dev";
 
 document.addEventListener('DOMContentLoaded', function() {
     initializeMap();
@@ -16,442 +32,1269 @@ document.addEventListener('DOMContentLoaded', function() {
     loadData(); 
     checkAuthSession(); 
     initChatbot(); 
-    initDraggable();
+    initDraggable(); 
 });
 
-// --- LOAD DATA & INITIAL STATE ---
+// --- CLOUD FUNCTIONS ---
+
 async function loadData() {
     try {
         const response = await fetch('/api/shops');
         const data = await response.json();
         if(Array.isArray(data)) {
             providers = data.map(p => ({...p, lat: parseFloat(p.lat), lng: parseFloat(p.lng)}));
-            // Initial view: Featured only, Map empty of shop markers
-            renderFeaturedProviders();
         }
-    } catch (error) { console.error("Error loading data:", error); }
-}
-
-// Render Initial "Best of" List (1 best per category, max 4)
-function renderFeaturedProviders() {
-    const container = document.getElementById('providersContainer');
-    document.getElementById('listHeader').textContent = "Top Rated Services (Featured)";
-    container.innerHTML = '';
-
-    const categories = [...new Set(providers.map(p => p.service))];
-    let featured = [];
-    
-    categories.forEach(cat => {
-        const bestInCat = providers.filter(p => p.service === cat).sort((a,b) => b.rating - a.rating)[0];
-        if(bestInCat) featured.push(bestInCat);
-    });
-
-    const initialShow = featured.slice(0, 4);
-    initialShow.forEach(p => createProviderCard(p, container));
-
-    const seeMoreBtn = document.getElementById('seeMoreBtn');
-    if (featured.length > 4) {
-        seeMoreBtn.style.display = 'block';
-        seeMoreBtn.onclick = () => {
-            featured.slice(4).forEach(p => createProviderCard(p, container));
-            seeMoreBtn.style.display = 'none';
-        };
-    } else {
-        seeMoreBtn.style.display = 'none';
+        applyFilters(); 
+    } catch (error) {
+        console.error("Error loading cloud data:", error);
     }
 }
 
-function createProviderCard(provider, container) {
-    const card = document.createElement('div');
-    card.className = 'provider-card';
-    card.setAttribute('data-id', provider.id);
-    const stars = '★'.repeat(Math.floor(provider.rating)) + '☆'.repeat(5 - Math.floor(provider.rating));
-    const isOpen = isShopOpen(provider.openTime, provider.closeTime);
-    
-    card.innerHTML = `
-        <div class="provider-header">
-            <div><div class="provider-name">${provider.name}</div><span class="provider-service">${getServiceDisplayName(provider.service)}</span></div>
-        </div>
-        <div class="provider-rating">
-            <span class="stars">${stars}</span><span>${provider.rating}</span><span class="status-badge ${isOpen ? 'status-open' : 'status-closed'}">${isOpen ? 'Open' : 'Closed'}</span>
-        </div>
-        <div class="provider-address"><i class="fas fa-map-marker-alt"></i> ${provider.address}</div>`;
-    
-    card.addEventListener('click', function() { 
-        showSingleShopOnMap(provider.id);
-        highlightProviderCard(provider.id); 
-    });
-    container.appendChild(card);
-}
-
-// --- MAP & LIST DISPLAY LOGIC ---
-function showSingleShopOnMap(id) {
-    clearMapMarkers();
-    const p = providers.find(x => x.id === id);
-    if(p) {
-        addMarkerToMap(p);
-        map.setView([p.lat, p.lng], 16);
-        const m = markers.find(m => m.providerId === id);
-        if(m) m.openPopup(); 
-    }
-}
-
-function showCategoryOnMap(category) {
-    clearMapMarkers();
-    const filtered = providers.filter(p => p.service === category);
-    filtered.forEach(addMarkerToMap);
-    
-    const container = document.getElementById('providersContainer');
-    container.innerHTML = '';
-    document.getElementById('listHeader').textContent = `All ${getServiceDisplayName(category)}s`;
-    document.getElementById('seeMoreBtn').style.display = 'none';
-    filtered.forEach(p => createProviderCard(p, container));
-
-    if(filtered.length > 0) {
-        const group = new L.featureGroup(markers);
-        map.fitBounds(group.getBounds().pad(0.2));
-    }
-}
-
-function clearMapMarkers() {
-    markers.forEach(m => map.removeLayer(m));
-    markers = [];
-}
-
-function addMarkerToMap(provider) {
-    const marker = L.marker([provider.lat, provider.lng]).addTo(map);
-    marker.providerId = provider.id;
-    marker.bindPopup(`<b>${provider.name}</b><br>${getServiceDisplayName(provider.service)}<br><button onclick="showProviderDetails(${provider.id})">View Details</button>`);
-    marker.on('click', () => highlightProviderCard(provider.id));
-    markers.push(marker);
-}
-
-// --- SEARCH & FILTER LOGIC ---
-function initializeEventListeners() {
-    const input = document.getElementById('searchInput');
-    const suggestionBox = document.getElementById('searchSuggestions');
-    
-    input.addEventListener('input', function(e) {
-        const val = e.target.value.toLowerCase().trim();
-        suggestionBox.innerHTML = '';
-        if(val.length < 1) { suggestionBox.style.display = 'none'; return; }
-        
-        // Match Categories (e -> Electrician)
-        const allServices = [...new Set(providers.map(p => p.service))];
-        const matchedServices = allServices.filter(s => s.toLowerCase().startsWith(val) || s.toLowerCase().includes(val));
-        
-        // Match Shops
-        const matchedShops = providers.filter(p => p.name.toLowerCase().includes(val));
-
-        let html = '';
-        if(matchedServices.length > 0) {
-            html += `<div class="suggestion-header">Categories</div>`;
-            matchedServices.forEach(s => html += `<div class="suggestion-item" onclick="selectSearchCategory('${s}')">${getServiceDisplayName(s)}</div>`);
-        }
-        if(matchedShops.length > 0) {
-            html += `<div class="suggestion-header">Shops</div>`;
-            matchedShops.forEach(p => html += `<div class="suggestion-item" onclick="selectSearchShop(${p.id})"><span>${p.name}</span><small>${getServiceDisplayName(p.service)}</small></div>`);
-        }
-        
-        if(html) { suggestionBox.innerHTML = html; suggestionBox.style.display = 'block'; }
-        else { suggestionBox.style.display = 'none'; }
-    });
-
-    document.addEventListener('click', (e) => {
-        if (!input.contains(e.target) && !suggestionBox.contains(e.target)) suggestionBox.style.display = 'none';
-    });
-
-    document.getElementById('applyFilters').addEventListener('click', applyFilters);
-    document.getElementById('locateMe').addEventListener('click', () => locateUser());
-    document.getElementById('resetMapBtn').addEventListener('click', resetMapView);
-    
-    // Auth & Modals
-    document.getElementById('loginBtnNav').onclick = () => document.getElementById('loginModal').style.display = 'block';
-    document.getElementById('registerBtnNav').onclick = () => document.getElementById('registerModal').style.display = 'block';
-    document.getElementById('logoutBtn').onclick = logout;
-    document.getElementById('adminPanelBtn').onclick = openAdminPanel;
-    document.getElementById('notificationWrapper').onclick = toggleNotifications;
-
-    document.getElementById('loginForm').onsubmit = handleLogin;
-    document.getElementById('registerForm').onsubmit = handleRegister;
-    document.getElementById('requestForm').onsubmit = handleSubmitRequest;
-    document.getElementById('sendRequestBtn').onclick = openRequestModal;
-    document.getElementById('getDirectionsBtn').onclick = () => routeMeToShop(currentDetailId);
-
-    document.querySelectorAll('.close').forEach(b => b.onclick = () => document.querySelectorAll('.modal').forEach(m => m.style.display='none'));
-}
-
-window.selectSearchCategory = function(service) {
-    document.getElementById('searchInput').value = getServiceDisplayName(service);
-    document.getElementById('searchSuggestions').style.display = 'none';
-    showCategoryOnMap(service);
-    if(window.innerWidth <= 768) document.querySelector('.sidebar').classList.add('expanded');
-};
-
-window.selectSearchShop = function(id) {
-    document.getElementById('searchSuggestions').style.display = 'none';
-    showSingleShopOnMap(id);
-    showProviderDetails(id);
-    if(window.innerWidth <= 768) document.querySelector('.sidebar').classList.remove('expanded');
-};
-
-function applyFilters() {
-    const serviceType = document.getElementById('serviceType').value;
-    if (serviceType !== 'all') {
-        showCategoryOnMap(serviceType);
-    } else {
-        clearMapMarkers();
-        providers.forEach(addMarkerToMap);
-        const container = document.getElementById('providersContainer');
-        container.innerHTML = '';
-        providers.forEach(p => createProviderCard(p, container));
-    }
-}
-
-// --- REQUEST SYSTEM ---
-function openRequestModal() {
-    if (!currentUser) { alert("Please Login to send a request."); return; }
-    document.getElementById('providerDetailsModal').style.display = 'none';
-    document.getElementById('requestModal').style.display = 'block';
-    document.getElementById('reqProviderId').value = currentDetailId;
-    document.getElementById('reqName').value = currentUser.username; 
-}
-
-async function handleSubmitRequest(e) {
-    e.preventDefault();
-    if(!userLocation) {
-        alert("Locating you...");
-        locateUser((success) => { if(success) handleSubmitRequest(e); });
-        return;
-    }
-
-    const data = {
-        providerId: document.getElementById('reqProviderId').value,
-        userId: currentUser.id,
-        userName: document.getElementById('reqName').value,
-        userPhone: document.getElementById('reqPhone').value,
-        userAddress: document.getElementById('reqAddress').value,
-        userLat: userLocation.lat,
-        userLng: userLocation.lng
-    };
-
+async function login(username, password) {
     try {
-        const res = await fetch('/api/requests', { method: 'POST', body: JSON.stringify(data) });
-        const result = await res.json();
-        if(result.success) {
-            document.getElementById('requestModal').style.display = 'none';
-            alert("Request Sent! Wait for provider response.");
-            trackRequestStatus(result.requestId);
-        }
-    } catch(err) { console.error(err); }
-}
-
-function trackRequestStatus(reqId) {
-    const display = document.getElementById('requestStatusDisplay');
-    const text = document.getElementById('reqStatusText');
-    const icon = document.getElementById('reqStatusIcon');
-    if(currentRequestStatusTimer) clearInterval(currentRequestStatusTimer);
-
-    document.getElementById('providerDetailsModal').style.display = 'block';
-    display.style.display = 'block';
-    
-    currentRequestStatusTimer = setInterval(async () => {
-        const res = await fetch(`/api/requests?requestId=${reqId}`);
-        const data = await res.json();
+        const response = await fetch(`/api/users?username=${username}&password=${password}`);
+        const data = await response.json(); 
         
-        let iconHtml = '';
-        if(data.status === 'sent') iconHtml = '<i class="fas fa-check tick-gray"></i>';
-        if(data.status === 'delivered') iconHtml = '<i class="fas fa-check-double tick-delivered"></i>';
-        if(data.status === 'seen') iconHtml = '<i class="fas fa-check-double tick-blue"></i>'; 
-        if(data.status === 'accepted') {
-            iconHtml = '<i class="fas fa-check-double tick-blue"></i> (Accepted)';
-            alert("Provider Accepted! Viewing Route...");
-            clearInterval(currentRequestStatusTimer);
+        if (response.ok) {
+            currentUser = data;
+            localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(data));
+            updateUIForUser();
+            document.getElementById('loginModal').style.display = 'none';
+            document.getElementById('loginForm').reset();
+            alert(`Welcome back, ${data.role}!`);
+        } else {
+            alert("Login Failed: " + (data.error || "Unknown Server Error"));
         }
-        text.textContent = data.status.toUpperCase();
-        icon.innerHTML = iconHtml;
-    }, 3000);
+    } catch (e) {
+        alert("Network Error: Check your internet connection.");
+        console.error(e);
+    }
 }
 
-async function checkNotifications() {
-    if(!currentUser || currentUser.role !== 'provider') return;
-    const res = await fetch(`/api/requests?providerId=${currentUser.id}`);
-    const requests = await res.json();
-    const badge = document.getElementById('notifBadge');
-    if(requests.length > 0) {
-        badge.textContent = requests.length;
-        badge.style.display = 'block';
-        const list = document.getElementById('notifList');
-        list.innerHTML = '';
-        requests.forEach(r => {
-            const div = document.createElement('div');
-            div.className = 'notif-item';
-            div.innerHTML = `<strong>${r.user_name}</strong> - ${r.status}<br><small>${r.user_address}</small>`;
-            div.onclick = () => openProviderRequestView(r);
-            list.appendChild(div);
+async function register(username, password, role, question, answer) {
+    try {
+        const userData = { username, password, role, securityQuestion: question, securityAnswer: answer };
+        const response = await fetch('/api/users', {
+            method: 'POST',
+            body: JSON.stringify(userData)
         });
+
+        const data = await response.json(); 
+
+        if (response.ok) {
+            currentUser = data;
+            localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(data));
+            updateUIForUser();
+            document.getElementById('registerModal').style.display = 'none';
+            document.getElementById('registerForm').reset();
+            alert("Account created successfully!");
+        } else {
+            alert("Registration Failed: " + (data.error || "Unknown Server Error"));
+        }
+    } catch (e) {
+        alert("Network Error: Could not reach the server.");
+        console.error(e);
     }
 }
 
-function openProviderRequestView(reqData) {
-    fetch('/api/requests', { method: 'PATCH', body: JSON.stringify({ requestId: reqData.id, status: 'seen' }) });
-    const choice = confirm(`Request from ${reqData.user_name}\nPhone: ${reqData.user_phone}\n\nShow Route to User?`);
-    if(choice) {
-        const myShop = providers.find(p => p.ownerId === currentUser.id);
-        if(myShop) executeRouting({ lat: myShop.lat, lng: myShop.lng }, { lat: reqData.user_lat, lng: reqData.user_lng });
+// --- INTERFACE LOGIC ---
+
+function initializeMobileSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    const handle = document.createElement('div');
+    handle.className = 'mobile-sidebar-handle';
+    handle.innerHTML = '<i class="fas fa-chevron-up"></i>';
+    sidebar.insertBefore(handle, sidebar.firstChild);
+
+    handle.addEventListener('click', () => {
+        sidebar.classList.toggle('expanded');
+        const icon = handle.querySelector('i');
+        if (sidebar.classList.contains('expanded')) {
+            icon.classList.remove('fa-chevron-up');
+            icon.classList.add('fa-chevron-down');
+        } else {
+            icon.classList.remove('fa-chevron-down');
+            icon.classList.add('fa-chevron-up');
+        }
+    });
+}
+
+function initDraggable() {
+    const headers = document.querySelectorAll('.draggable-header');
+    headers.forEach(header => {
+        const modalContent = header.closest('.modal-content') || header.closest('.chat-window');
+        if(modalContent) dragElement(modalContent, header);
+    });
+}
+
+function dragElement(element, handle) {
+    let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+    handle.onmousedown = dragMouseDown;
+    function dragMouseDown(e) {
+        e.preventDefault();
+        pos3 = e.clientX;
+        pos4 = e.clientY;
+        document.onmouseup = closeDragElement;
+        document.onmousemove = elementDrag;
     }
-}
-
-function toggleNotifications() {
-    const d = document.getElementById('notificationDropdown');
-    d.style.display = d.style.display === 'block' ? 'none' : 'block';
-}
-
-// --- CHATBOT ---
-function initChatbot() {
-    const input = document.getElementById('chatInput');
-    document.getElementById('sendChatBtn').onclick = () => handleChat(input.value);
-    document.getElementById('chatbotToggle').onclick = () => document.getElementById('chatWindow').classList.toggle('open');
-    document.getElementById('closeChatBtn').onclick = () => document.getElementById('chatWindow').classList.remove('open');
-}
-
-function handleChat(msg) {
-    if(!msg) return;
-    const div = document.createElement('div');
-    div.className = 'message-bubble user-msg';
-    div.innerHTML = msg;
-    document.getElementById('chatMessages').appendChild(div);
-    document.getElementById('chatInput').value = '';
-    
-    const lower = msg.toLowerCase();
-    let reply = "", recommendedService = "";
-
-    if(lower.includes('leak') || lower.includes('pipe') || lower.includes('water')) recommendedService = 'plumber';
-    else if(lower.includes('light') || lower.includes('wire') || lower.includes('fan')) recommendedService = 'electrician';
-    else if(lower.includes('wood') || lower.includes('door')) recommendedService = 'carpenter';
-    else if(lower.includes('car') || lower.includes('start')) recommendedService = 'mechanic';
-    else if(lower.includes('ac') || lower.includes('hot')) recommendedService = 'ac_repair';
-
-    if(recommendedService) {
-        const best = providers.filter(p => p.service === recommendedService).sort((a,b) => b.rating - a.rating)[0];
-        if(best) reply = `I recommend <b>${best.name}</b> (${best.rating} stars) for ${recommendedService}. <button class="btn-secondary" onclick="selectSearchShop(${best.id})">View Shop</button>`;
-        else reply = `You need a ${recommendedService}, but no shops are listed.`;
-    } else {
-        reply = "Try asking about 'leaks', 'wiring', 'woodwork' or 'car issues'.";
+    function elementDrag(e) {
+        e.preventDefault();
+        pos1 = pos3 - e.clientX;
+        pos2 = pos4 - e.clientY;
+        pos3 = e.clientX;
+        pos4 = e.clientY;
+        element.style.top = (element.offsetTop - pos2) + "px";
+        element.style.left = (element.offsetLeft - pos1) + "px";
+        element.style.margin = "0"; 
+        element.style.position = "fixed"; 
+        element.style.transform = "none"; 
     }
-    
-    setTimeout(() => {
-        const bDiv = document.createElement('div');
-        bDiv.className = 'message-bubble bot-msg';
-        bDiv.innerHTML = reply;
-        document.getElementById('chatMessages').appendChild(bDiv);
-    }, 500);
-}
-
-// --- MAP UTILS ---
-function initializeMap() {
-    map = L.map('map', { zoomControl: false }).setView([31.4880, 74.3430], 15);
-    L.control.zoom({ position: 'topleft' }).addTo(map);
-    osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-    satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
-}
-
-function locateUser(cb) {
-    if(!navigator.geolocation) { alert("Geo not supported"); return; }
-    navigator.geolocation.getCurrentPosition(pos => {
-        userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        if(window.userMarker) map.removeLayer(window.userMarker);
-        window.userMarker = L.marker([userLocation.lat, userLocation.lng], {
-            icon: L.divIcon({className: 'user-marker', html: '<i class="fas fa-dot-circle" style="color:blue; font-size:20px;"></i>'})
-        }).addTo(map).bindPopup("You are Here");
-        map.setView([userLocation.lat, userLocation.lng], 16);
-        if(cb) cb(true);
-    }, () => { alert("Location access denied"); if(cb) cb(false); });
-}
-
-function executeRouting(start, end) {
-    if(routingControl) map.removeControl(routingControl);
-    routingControl = L.Routing.control({
-        waypoints: [L.latLng(start.lat, start.lng), L.latLng(end.lat, end.lng)],
-        routeWhileDragging: false
-    }).addTo(map);
-}
-
-function routeMeToShop(shopId) {
-    if(!userLocation) { locateUser(() => routeMeToShop(shopId)); return; }
-    const shop = providers.find(p => p.id === shopId);
-    executeRouting(userLocation, shop);
-}
-
-// --- AUTH MOCK ---
-async function handleLogin(e) {
-    e.preventDefault();
-    const u = document.getElementById('loginUsername').value;
-    const p = document.getElementById('loginPassword').value;
-    const res = await fetch(`/api/users?username=${u}&password=${p}`);
-    const data = await res.json();
-    if(res.ok) {
-        currentUser = data;
-        localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(data));
-        checkAuthSession();
-        document.getElementById('loginModal').style.display = 'none';
-        if(data.role === 'provider') setInterval(checkNotifications, 5000); 
-    } else alert("Login Failed");
-}
-
-function handleRegister(e) {
-    e.preventDefault();
-    alert("Use API implementation from previous steps for real registration.");
+    function closeDragElement() {
+        document.onmouseup = null;
+        document.onmousemove = null;
+    }
 }
 
 function checkAuthSession() {
-    const s = localStorage.getItem(CURRENT_USER_KEY);
-    if(s) {
-        currentUser = JSON.parse(s);
-        document.getElementById('loggedOutView').style.display = 'none';
-        document.getElementById('loggedInView').style.display = 'flex';
-        document.getElementById('welcomeUser').textContent = `Hi, ${currentUser.username}`;
-        if(currentUser.role === 'admin') document.getElementById('adminPanelBtn').style.display = 'block';
-        if(currentUser.role === 'provider') {
-            document.getElementById('notificationWrapper').style.display = 'block';
-            checkNotifications();
+    const session = localStorage.getItem(CURRENT_USER_KEY);
+    if (session) {
+        currentUser = JSON.parse(session);
+        updateUIForUser();
+    } else {
+        updateUIForGuest();
+    }
+}
+
+function recoverPassword(username, answer) {
+    alert("Password recovery requires a specific API endpoint update. Contact Admin.");
+}
+
+function logout() {
+    if (confirm("Are you sure you want to log out?")) {
+        currentUser = null;
+        localStorage.removeItem(CURRENT_USER_KEY);
+        updateUIForGuest();
+        document.getElementById('addProviderModal').style.display = 'none';
+        document.getElementById('adminModal').style.display = 'none';
+    }
+}
+
+function updateUIForUser() {
+    document.getElementById('loggedOutView').style.display = 'none';
+    document.getElementById('loggedInView').style.display = 'flex';
+    document.getElementById('welcomeUser').textContent = `Hi, ${currentUser.username}`;
+    
+    if (currentUser.role === 'admin' || currentUser.role === 'provider') {
+        document.getElementById('addProviderBtn').style.display = 'inline-block';
+        document.getElementById('addProviderBtnMobile').style.display = 'inline-block';
+    } else {
+        document.getElementById('addProviderBtn').style.display = 'none';
+        document.getElementById('addProviderBtnMobile').style.display = 'none';
+    }
+
+    if (currentUser.role === 'admin') {
+        document.getElementById('adminPanelBtn').style.display = 'inline-block';
+        if(document.getElementById('adminGeoPanel')) document.getElementById('adminGeoPanel').style.display = 'block';
+    } else {
+        document.getElementById('adminPanelBtn').style.display = 'none';
+        if(document.getElementById('adminGeoPanel')) document.getElementById('adminGeoPanel').style.display = 'none';
+    }
+}
+
+function updateUIForGuest() {
+    document.getElementById('loggedOutView').style.display = 'block';
+    document.getElementById('loggedInView').style.display = 'none';
+    document.getElementById('addProviderBtn').style.display = 'none';
+    document.getElementById('addProviderBtnMobile').style.display = 'none';
+    document.getElementById('adminPanelBtn').style.display = 'none';
+    if(document.getElementById('adminGeoPanel')) document.getElementById('adminGeoPanel').style.display = 'none';
+}
+
+const convertBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+        const fileReader = new FileReader();
+        fileReader.readAsDataURL(file);
+        fileReader.onload = () => resolve(fileReader.result);
+        fileReader.onerror = (error) => reject(error);
+    });
+};
+
+window.copyToClipboard = function(text) {
+    navigator.clipboard.writeText(text).then(function() {
+        alert("Coordinates copied: " + text);
+    }, function(err) {
+        console.error('Could not copy text: ', err);
+    });
+};
+
+function initializeMap() {
+    map = L.map('map', { zoomControl: false }).setView([DEFAULT_CENTER.lat, DEFAULT_CENTER.lng], 16);
+    L.control.zoom({ position: 'topleft' }).addTo(map);
+
+    searchAnchor = { ...DEFAULT_CENTER };
+    osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors', maxZoom: 19 });
+    satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: '© Esri, Maxar', maxZoom: 19 });
+    osmLayer.addTo(map);
+    const initialRadius = parseFloat(document.getElementById('searchRadius').value);
+    updateMapRadius(initialRadius);
+    map.on('click', function(e) { if (isPickingLocation) confirmLocationPick(e.latlng); });
+}
+
+function initializeEventListeners() {
+    document.getElementById('searchBtn').addEventListener('click', performSearch);
+    document.getElementById('searchInput').addEventListener('keypress', function(e) { if (e.key === 'Enter') performSearch(); });
+    document.getElementById('applyFilters').addEventListener('click', applyFilters);
+    document.getElementById('searchRadius').addEventListener('change', applyFilters);
+    document.getElementById('locateMe').addEventListener('click', () => locateUser());
+    document.getElementById('resetMapBtn').addEventListener('click', resetMapView);
+    document.getElementById('setOsmMap').addEventListener('click', () => setBasemap('osm'));
+    document.getElementById('setSatelliteMap').addEventListener('click', () => setBasemap('satellite'));
+    document.getElementById('toggleNarratorBtn').addEventListener('click', toggleNarrator);
+    document.getElementById('toggleRouteInfoBtn').addEventListener('click', toggleRouteWindow);
+
+    document.getElementById('togglePunjabBtn').addEventListener('click', togglePunjabLayer);
+    
+    const newLayerBtn = document.getElementById('toggleNewLayerBtn');
+    if (newLayerBtn) {
+        newLayerBtn.addEventListener('click', toggleNewLayer);
+    }
+
+    const radiusSlider = document.getElementById('searchRadius');
+    if (radiusSlider) {
+        radiusSlider.addEventListener('input', function() {
+            document.getElementById('radiusValue').textContent = `${this.value} km`;
+            updateMapRadius(parseFloat(this.value));
+        });
+    }
+
+    document.getElementById('addProviderBtn').addEventListener('click', () => openAddProviderModal());
+    document.getElementById('addProviderBtnMobile').addEventListener('click', () => openAddProviderModal()); 
+    
+    document.getElementById('cancelAdd').addEventListener('click', closeAddProviderModal);
+    document.getElementById('providerForm').addEventListener('submit', handleProviderSubmit);
+    document.getElementById('pickLocationBtn').addEventListener('click', toggleLocationPicker);
+    
+    document.getElementById('submitReviewBtn').addEventListener('click', submitReview);
+    document.getElementById('deleteProviderBtn').addEventListener('click', deleteCurrentProvider);
+    document.getElementById('editProviderBtn').addEventListener('click', editCurrentProvider);
+    
+    document.getElementById('getDirectionsBtn').addEventListener('click', function() { if(currentDetailId) routeToShop(currentDetailId); });
+    document.getElementById('reverseRouteBtn').addEventListener('click', function() { if(currentDetailId) routeShopToUser(currentDetailId); });
+
+    document.getElementById('loginBtnNav').addEventListener('click', () => document.getElementById('loginModal').style.display = 'block');
+    document.getElementById('registerBtnNav').addEventListener('click', () => document.getElementById('registerModal').style.display = 'block');
+    document.getElementById('forgotPasswordLink').addEventListener('click', () => {
+        document.getElementById('loginModal').style.display = 'none';
+        document.getElementById('forgotPasswordModal').style.display = 'block';
+    });
+    
+    document.getElementById('logoutBtn').addEventListener('click', logout);
+    document.getElementById('adminPanelBtn').addEventListener('click', openAdminPanel);
+    document.getElementById('resetSystemBtn').addEventListener('click', resetSystemData);
+    
+    document.getElementById('statUsers').addEventListener('click', renderAdminUserList);
+    document.getElementById('statShops').addEventListener('click', renderAdminShopList);
+
+    document.getElementById('loginForm').addEventListener('submit', function(e) { 
+        e.preventDefault(); 
+        login(document.getElementById('loginUsername').value, document.getElementById('loginPassword').value); 
+    });
+    document.getElementById('registerForm').addEventListener('submit', function(e) { 
+        e.preventDefault(); 
+        register(
+            document.getElementById('regUsername').value, 
+            document.getElementById('regPassword').value, 
+            document.getElementById('regRole').value,
+            document.getElementById('regSecurityQuestion').value,
+            document.getElementById('regSecurityAnswer').value
+        ); 
+    });
+    document.getElementById('forgotPasswordForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        recoverPassword(document.getElementById('recoverUsername').value, document.getElementById('recoverAnswer').value);
+    });
+
+    document.querySelectorAll('.close').forEach(closeBtn => { closeBtn.addEventListener('click', function() { document.querySelectorAll('.modal').forEach(modal => modal.style.display = 'none'); }); });
+    window.addEventListener('click', function(event) { document.querySelectorAll('.modal').forEach(modal => { if (event.target === modal) modal.style.display = 'none'; }); });
+
+    document.querySelectorAll('.rating-stars .star').forEach(star => {
+        star.addEventListener('click', function() {
+            const rating = parseInt(this.getAttribute('data-rating'));
+            updateStarVisuals(rating);
+            this.parentElement.setAttribute('data-selected-rating', rating);
+        });
+    });
+
+    document.querySelectorAll('.toggle-password').forEach(icon => {
+        icon.addEventListener('click', function() {
+            const targetId = this.getAttribute('data-target');
+            const input = document.getElementById(targetId);
+            if (input.type === 'password') {
+                input.type = 'text';
+                this.classList.remove('fa-eye');
+                this.classList.add('fa-eye-slash');
+            } else {
+                input.type = 'password';
+                this.classList.remove('fa-eye-slash');
+                this.classList.add('fa-eye');
+            }
+        });
+    });
+}
+
+function openAdminPanel() {
+    document.getElementById('adminTotalUsers').textContent = "Click to View";
+    document.getElementById('adminTotalShops').textContent = providers.length;
+    document.getElementById('adminListSection').style.display = 'none';
+    document.getElementById('adminModal').style.display = 'block';
+}
+
+function resetSystemData() {
+    alert("Admin reset not available in cloud mode via this button for safety.");
+}
+
+async function renderAdminUserList() {
+    const listSection = document.getElementById('adminListSection');
+    const container = document.getElementById('adminListContainer');
+    const title = document.getElementById('adminListTitle');
+    
+    title.textContent = "Manage Users (Cloud)";
+    listSection.style.display = 'block';
+    container.innerHTML = '<div style="padding:10px; text-align:center;">Loading users...</div>';
+
+    try {
+        const response = await fetch('/api/users?action=list');
+        if (!response.ok) throw new Error("Failed to fetch user list");
+        
+        const users = await response.json();
+        
+        document.getElementById('adminTotalUsers').textContent = users.length;
+        
+        container.innerHTML = '';
+        if (users.length === 0) {
+            container.innerHTML = '<div style="padding:15px; text-align:center;">No users found.</div>';
+            return;
+        }
+
+        users.forEach(user => {
+            const item = document.createElement('div');
+            item.className = 'admin-list-item';
+            const deleteBtn = (currentUser && user.id === currentUser.id) ? 
+                `<span style="color:#cbd5e0;">(You)</span>` : 
+                `<button class="btn-sm-danger" onclick="adminDeleteUser(${user.id})" title="Delete API not connected">Delete</button>`;
+
+            item.innerHTML = `<div class="item-info"><strong>${user.username}</strong><small>${user.role}</small></div><div>${deleteBtn}</div>`;
+            container.appendChild(item);
+        });
+
+    } catch (error) {
+        console.error(error);
+        container.innerHTML = '<div style="color:red; text-align:center; padding:10px;">Error loading users. Check console.</div>';
+    }
+}
+
+function renderAdminShopList() {
+    const listSection = document.getElementById('adminListSection');
+    const container = document.getElementById('adminListContainer');
+    const title = document.getElementById('adminListTitle');
+    const currentProviders = providers; 
+    title.textContent = "Manage Shops";
+    listSection.style.display = 'block';
+    container.innerHTML = '';
+    if (currentProviders.length === 0) { container.innerHTML = '<div style="padding:15px; text-align:center;">No shops found.</div>'; return; }
+    currentProviders.forEach(p => {
+        const item = document.createElement('div');
+        item.className = 'admin-list-item';
+        item.innerHTML = `<div class="item-info"><strong>${p.name}</strong><small>${getServiceDisplayName(p.service)}</small></div><div><button class="btn-sm-danger" onclick="adminDeleteShop(${p.id})">Delete</button></div>`;
+        container.appendChild(item);
+    });
+}
+
+function adminDeleteUser(userId) {
+    alert("Delete User feature requires a DELETE API endpoint (Coming Soon).");
+}
+
+function adminDeleteShop(shopId) {
+    if(!confirm("Delete this shop?")) return;
+    alert("Delete feature requires API DELETE endpoint.");
+}
+
+function updateMapRadius(radiusKm) {
+    if (searchRadiusCircle) map.removeLayer(searchRadiusCircle);
+    searchRadiusCircle = L.circle([searchAnchor.lat, searchAnchor.lng], { color: '#667eea', fillColor: '#667eea', fillOpacity: 0.15, radius: radiusKm * 1000 }).addTo(map);
+}
+
+// --- ROUTING SYSTEM ---
+
+function setRouteProfile(profile) {
+    currentRouteProfile = profile;
+    document.querySelectorAll('.route-mode-btn').forEach(btn => btn.classList.remove('active'));
+    document.getElementById(`mode-${profile}`).classList.add('active');
+    
+    if (routingControl) {
+        const waypoints = routingControl.getWaypoints();
+        routingControl.setWaypoints(waypoints);
+    }
+}
+
+function toggleNarrator() {
+    narratorEnabled = !narratorEnabled;
+    const btn = document.getElementById('toggleNarratorBtn');
+    if (narratorEnabled) {
+        btn.classList.add('active');
+        speakText("Voice navigation enabled. Proceed to route.");
+    } else {
+        btn.classList.remove('active');
+        window.speechSynthesis.cancel();
+    }
+}
+
+function toggleRouteWindow() {
+    const container = document.querySelector('.leaflet-routing-container');
+    const btn = document.getElementById('toggleRouteInfoBtn');
+    if(container) {
+        container.classList.toggle('hidden-instructions');
+        if(container.classList.contains('hidden-instructions')) {
+            btn.classList.remove('active');
+        } else {
+            btn.classList.add('active');
         }
     }
 }
 
-function logout() {
-    localStorage.removeItem(CURRENT_USER_KEY);
-    location.reload();
+function speakText(text) {
+    if (!narratorEnabled) return;
+    window.speechSynthesis.cancel();
+    const msg = new SpeechSynthesisUtterance(text);
+    window.speechSynthesis.speak(msg);
 }
 
-function initializeMobileSidebar() {
-    const sb = document.querySelector('.sidebar');
-    const h = document.createElement('div');
-    h.className = 'mobile-sidebar-handle';
-    h.innerHTML = '<i class="fas fa-chevron-up"></i>';
-    h.onclick = () => sb.classList.toggle('expanded');
-    sb.appendChild(h);
+function routeToShop(providerId) {
+    if (!userLocation) {
+        alert("We need your location first. Please allow access.");
+        locateUser(function(success) { if(success) executeRouting(providerId, false); });
+        return;
+    }
+    executeRouting(providerId, false);
 }
 
-function initDraggable() { /* Logic abbreviated, assume previous implementation */ }
-function getServiceDisplayName(s) { const map = { 'electrician': 'Electrician', 'plumber': 'Plumber', 'carpenter': 'Carpenter', 'mechanic': 'Mechanic' }; return map[s] || s.charAt(0).toUpperCase() + s.slice(1); }
-function isShopOpen() { return true; }
-function highlightProviderCard(id) { 
-    document.querySelectorAll('.provider-card').forEach(c => c.classList.remove('active'));
-    const card = document.querySelector(`.provider-card[data-id="${id}"]`);
-    if(card) { card.classList.add('active'); card.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+function routeShopToUser(providerId) {
+    if (!userLocation) {
+        alert("We need your location first. Please allow access.");
+        locateUser(function(success) { if(success) executeRouting(providerId, true); });
+        return;
+    }
+    executeRouting(providerId, true);
 }
+
+function executeRouting(providerId, reverse) {
+    const provider = providers.find(p => p.id === providerId);
+    if (!provider) return;
+    
+    if (routingControl) {
+        map.removeControl(routingControl);
+        routingControl = null;
+    }
+    
+    if (liveTrackingId) {
+        navigator.geolocation.clearWatch(liveTrackingId); 
+        liveTrackingId = null;
+    }
+
+    if (window.userMarker) {
+        map.removeLayer(window.userMarker);
+    }
+    hideAllMarkersExcept([provider.id]);
+
+    const sidebar = document.querySelector('.sidebar');
+    if (sidebar) sidebar.classList.remove('expanded');
+
+    document.querySelectorAll('.modal').forEach(modal => modal.style.display = 'none');
+    document.getElementById('toggleNarratorBtn').style.display = 'block';
+    document.getElementById('toggleRouteInfoBtn').style.display = 'block';
+    document.getElementById('toggleRouteInfoBtn').classList.add('active');
+
+    if (!document.getElementById('routeModeControls')) {
+        const modeDiv = L.Control.extend({
+            options: { position: 'topright' }, 
+            onAdd: function(map) {
+                const div = L.DomUtil.create('div', 'route-mode-controls');
+                div.id = 'routeModeControls';
+                div.style.backgroundColor = 'white';
+                div.style.padding = '5px';
+                div.style.borderRadius = '5px';
+                div.style.boxShadow = '0 2px 6px rgba(0,0,0,0.3)';
+                
+                div.innerHTML = `
+                    <button id="mode-walking" class="route-mode-btn" onclick="setRouteProfile('walking')" title="Walking"><i class="fas fa-walking"></i></button>
+                    <button id="mode-cycling" class="route-mode-btn" onclick="setRouteProfile('cycling')" title="Cycling"><i class="fas fa-bicycle"></i></button>
+                    <button id="mode-driving" class="route-mode-btn active" onclick="setRouteProfile('driving')" title="Driving"><i class="fas fa-car"></i></button>
+                    <style>
+                        .route-mode-btn { border:none; background:white; padding:5px 10px; cursor:pointer; font-size:16px; border-radius:3px; }
+                        .route-mode-btn:hover { background:#f0f0f0; }
+                        .route-mode-btn.active { background:#667eea; color:white; }
+                    </style>
+                `;
+                return div;
+            }
+        });
+        map.addControl(new modeDiv());
+        window.setRouteProfile = setRouteProfile;
+    }
+
+    const p1 = reverse ? L.latLng(userLocation.lat, userLocation.lng) : L.latLng(userLocation.lat, userLocation.lng);
+    const p2 = reverse ? L.latLng(provider.lat, provider.lng) : L.latLng(provider.lat, provider.lng);
+
+    routingControl = L.Routing.control({
+        waypoints: [p1, p2],
+        routeWhileDragging: true, 
+        router: L.Routing.osrmv1({
+            serviceUrl: 'https://router.project-osrm.org/route/v1',
+            profile: 'driving' 
+        }),
+        lineOptions: { styles: [{color: '#667eea', opacity: 1, weight: 5}] },
+        createMarker: function(i, wp, nWps) {
+            let markerIcon;
+            let popupContent;
+            
+            const meIcon = L.divIcon({ 
+                className: 'user-marker-routing', 
+                html: '<div style="background-color:#4285F4; width:20px; height:20px; border-radius:50%; border:2px solid white; box-shadow:0 0 5px rgba(0,0,0,0.5);"></div><span style="position:absolute; top:-20px; left:-10px; font-weight:bold; background:white; padding:1px 4px; border-radius:4px; font-size:11px;">Me</span>', 
+                iconSize: [20, 20],
+                iconAnchor: [10, 10]
+            });
+
+            const shopIcon = L.icon({
+                iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
+                iconSize: [25, 41],
+                iconAnchor: [12, 41],
+                popupAnchor: [1, -34]
+            });
+
+            let isDraggable = true;
+
+            if (!reverse) { 
+                if (i === 0) { 
+                    markerIcon = meIcon; 
+                    popupContent = "<b>I am Here (Start)</b>"; 
+                    isDraggable = false; 
+                } 
+                else { 
+                    markerIcon = shopIcon; 
+                    popupContent = createPopupContent(provider); 
+                    isDraggable = false; 
+                }
+            } else { 
+                if (i === 0) { 
+                    markerIcon = shopIcon; 
+                    popupContent = createPopupContent(provider); 
+                    isDraggable = false; 
+                } 
+                else { 
+                    markerIcon = meIcon;
+                    isDraggable = true; 
+                    popupContent = `
+                        <div class="dest-popup-container">
+                            <h4>Adjust Drop-off Location</h4>
+                            <div class="dest-popup-inputs">
+                                <input type="number" id="manualDestLat" step="any" value="${wp.latLng.lat.toFixed(6)}" placeholder="Latitude">
+                                <input type="number" id="manualDestLng" step="any" value="${wp.latLng.lng.toFixed(6)}" placeholder="Longitude">
+                                <button class="dest-popup-btn" onclick="updateRouteDestination()">Route to User</button>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+
+            const marker = L.marker(wp.latLng, { draggable: isDraggable, icon: markerIcon });
+            if (popupContent) {
+                marker.bindPopup(popupContent);
+                if (reverse && i === 1) setTimeout(() => { marker.openPopup(); }, 500); 
+            }
+            return marker;
+        },
+        showAlternatives: false,
+        addWaypoints: false,
+        containerClassName: 'leaflet-routing-container'
+    }).addTo(map);
+
+    routingControl.on('routesfound', function(e) {
+        const routes = e.routes;
+        const summary = routes[0].summary;
+        const totalDistKm = (summary.totalDistance / 1000).toFixed(1);
+        
+        let timeMins = Math.round(summary.totalTime / 60);
+        let modeText = "Driving";
+
+        if (currentRouteProfile === 'walking') {
+            timeMins = Math.round((summary.totalDistance / 1000) / 5 * 60); 
+            modeText = "Walking";
+        } else if (currentRouteProfile === 'cycling') {
+            timeMins = Math.round((summary.totalDistance / 1000) / 20 * 60);
+            modeText = "Cycling";
+        }
+
+        let msg = `${modeText} route. Distance ${totalDistKm} km. Time approx ${timeMins} minutes.`;
+        if(reverse) msg += " Drag the 'Me' icon to adjust destination.";
+        speakText(msg);
+        
+        setTimeout(() => {
+            const container = document.querySelector('.leaflet-routing-container');
+            if(container) {
+                container.style.display = 'block';
+                container.classList.remove('hidden-instructions');
+                const header = container.querySelector('h2') || container.querySelector('h3');
+                if(header) header.textContent = `${timeMins} min (${totalDistKm} km) - ${modeText}`;
+            }
+        }, 500);
+    });
+    
+    if (!reverse) {
+        liveTrackingId = navigator.geolocation.watchPosition(
+            function(pos) {
+                const newLat = pos.coords.latitude;
+                const newLng = pos.coords.longitude;
+                const currentLatLng = L.latLng(userLocation.lat, userLocation.lng);
+                const newLatLng = L.latLng(newLat, newLng);
+                
+                if (currentLatLng.distanceTo(newLatLng) > 20) {
+                    userLocation = { lat: newLat, lng: newLng };
+                    const waypoints = routingControl.getWaypoints();
+                    waypoints[0].latLng = newLatLng; 
+                    routingControl.setWaypoints(waypoints);
+                    console.log("Route updated live.");
+                }
+            }, 
+            function(err) { console.warn("Live tracking warning:", err.message); }, 
+            { enableHighAccuracy: true, maximumAge: 10000, timeout: 10000 }
+        );
+    }
+
+    if(reverse) {
+        alert("Provider Mode: Route starts at SHOP. You can drag the USER icon (Destination) to change drop-off point.");
+    }
+
+    const bounds = L.latLngBounds([p1, p2]);
+    map.fitBounds(bounds, { padding: [50, 50] });
+}
+
+function updateRouteDestination() {
+    const lat = parseFloat(document.getElementById('manualDestLat').value);
+    const lng = parseFloat(document.getElementById('manualDestLng').value);
+    if(isNaN(lat) || isNaN(lng)) { alert("Please enter valid Latitude and Longitude"); return; }
+    if(routingControl) {
+        const waypoints = routingControl.getWaypoints();
+        // Index 1 is the destination in reverse mode
+        const newWaypoints = [ waypoints[0], L.Routing.waypoint(L.latLng(lat, lng)) ];
+        routingControl.setWaypoints(newWaypoints);
+        map.closePopup(); 
+    }
+}
+
+function hideAllMarkersExcept(visibleIds) {
+    markers.forEach(marker => {
+        if(visibleIds.includes(marker.providerId)) {
+            if(!map.hasLayer(marker)) map.addLayer(marker);
+        } else {
+            if(map.hasLayer(marker)) map.removeLayer(marker);
+        }
+    });
+}
+
+function locateUser(callback) {
+    if (!navigator.geolocation) { alert('Geolocation not supported'); if(callback) callback(false); return; }
+    navigator.geolocation.getCurrentPosition(
+        function(position) {
+            userLocation = { lat: position.coords.latitude, lng: position.coords.longitude };
+            searchAnchor = userLocation; 
+            map.setView([userLocation.lat, userLocation.lng], 16);
+            
+            if(window.userMarker) map.removeLayer(window.userMarker);
+            
+            const popupContent = `
+                <div style="text-align:center;">
+                    <b>You are here</b><br>
+                    <span style="font-size:0.85rem; color:#555;">${userLocation.lat.toFixed(5)}, ${userLocation.lng.toFixed(5)}</span><br>
+                    <button onclick="window.copyToClipboard('${userLocation.lat}, ${userLocation.lng}')" 
+                        style="margin-top:5px; padding:2px 8px; font-size:0.8rem; cursor:pointer; border:1px solid #ccc; background:#f0f0f0; border-radius:4px;">
+                        <i class="fas fa-copy"></i> Copy
+                    </button>
+                </div>
+            `;
+            
+            window.userMarker = L.marker([userLocation.lat, userLocation.lng], {
+                icon: L.divIcon({ className: 'user-marker', html: '<i class="fas fa-dot-circle" style="color:#4285F4; font-size:24px; text-shadow:0 0 5px white;"></i>', iconSize: [24, 24] })
+            }).addTo(map).bindPopup(popupContent);
+            
+            updateMapRadius(parseFloat(document.getElementById('searchRadius').value));
+            applyFilters();
+            if(callback) callback(true);
+        },
+        function() { alert('Unable to get location'); if(callback) callback(false); }
+    );
+}
+
+function applyFilters() {
+    const serviceType = document.getElementById('serviceType').value;
+    const minRating = parseFloat(document.getElementById('ratingFilter').value);
+    const radiusKm = parseFloat(document.getElementById('searchRadius').value);
+    const centerPoint = L.latLng(searchAnchor.lat, searchAnchor.lng);
+
+    const filtered = providers.filter(p => {
+        const matchService = (serviceType === 'all') || (p.service === serviceType);
+        const matchRating = (p.rating >= minRating);
+        const providerPoint = L.latLng(p.lat, p.lng);
+        const distanceMeters = centerPoint.distanceTo(providerPoint);
+        const matchDistance = distanceMeters <= (radiusKm * 1000);
+        return matchService && matchRating && matchDistance;
+    });
+    renderProvidersList(filtered);
+    addProvidersToMap(filtered);
+}
+
+function renderProvidersList(listToRender) {
+    const container = document.getElementById('providersContainer');
+    container.innerHTML = '';
+    if(listToRender.length === 0) { container.innerHTML = "<p style='text-align:center; color:#666;'>No shops found.</p>"; return; }
+    listToRender.forEach(provider => {
+         const card = document.createElement('div');
+         card.className = 'provider-card';
+         card.setAttribute('data-id', provider.id);
+         const stars = '★'.repeat(Math.floor(provider.rating)) + '☆'.repeat(5 - Math.floor(provider.rating));
+         
+         const isOpen = isShopOpen(provider.openTime, provider.closeTime);
+         const statusClass = isOpen ? 'status-open' : 'status-closed';
+         const statusText = isOpen ? 'Open' : 'Closed';
+         
+         card.innerHTML = `
+            <div class="provider-header"><div><div class="provider-name">${provider.name}</div><span class="provider-service">${getServiceDisplayName(provider.service)}</span></div></div>
+            <div class="provider-rating"><span class="stars">${stars}</span><span>${provider.rating}</span><span class="status-badge ${statusClass}">${statusText}</span></div>
+            <div class="provider-address"><i class="fas fa-map-marker-alt"></i> ${provider.address}</div>`;
+         card.addEventListener('click', function() { showProviderOnMap(provider.id); highlightProviderCard(provider.id); });
+         container.appendChild(card);
+    });
+}
+
+function addProvidersToMap(listToRender) {
+    markers.forEach(marker => map.removeLayer(marker));
+    markers = [];
+    
+    listToRender.forEach(provider => {
+        const marker = L.marker([provider.lat, provider.lng]).addTo(map).bindPopup(createPopupContent(provider));
+        marker.providerId = provider.id;
+        marker.on('click', function() { highlightProviderCard(provider.id); });
+        markers.push(marker);
+    });
+}
+
+function isShopOpen(open, close) {
+    if(!open || !close) return false;
+    const now = new Date();
+    const currentMins = now.getHours() * 60 + now.getMinutes();
+    
+    const [openH, openM] = open.split(':').map(Number);
+    const [closeH, closeM] = close.split(':').map(Number);
+    
+    const startMins = openH * 60 + openM;
+    const endMins = closeH * 60 + closeM;
+    
+    return currentMins >= startMins && currentMins <= endMins;
+}
+
+function openAddProviderModal(editMode = false, provider = null) {
+    const modal = document.getElementById('addProviderModal');
+    const form = document.getElementById('providerForm');
+    const title = document.getElementById('modalTitleProvider');
+    const btn = document.getElementById('saveProviderBtn');
+    
+    modal.style.display = 'block';
+    form.reset();
+    
+    if (editMode && provider) {
+        title.textContent = "Modify Shop";
+        btn.textContent = "Update Shop";
+        document.getElementById('editProviderId').value = provider.id;
+        document.getElementById('providerName').value = provider.name;
+        document.getElementById('providerService').value = provider.service;
+        document.getElementById('providerPhone').value = provider.phone;
+        document.getElementById('providerAddress').value = provider.address;
+        document.getElementById('providerDescription').value = provider.description || '';
+        document.getElementById('providerOpenTime').value = provider.openTime || '';
+        document.getElementById('providerCloseTime').value = provider.closeTime || '';
+        document.getElementById('newLat').value = provider.lat;
+        document.getElementById('newLng').value = provider.lng;
+        document.getElementById('locationStatus').textContent = `${provider.lat.toFixed(4)}, ${provider.lng.toFixed(4)}`;
+        document.getElementById('locationStatus').style.color = 'green';
+    } else {
+        title.textContent = "Add Service Provider";
+        btn.textContent = "Save Shop";
+        document.getElementById('editProviderId').value = "";
+        document.getElementById('locationStatus').textContent = "Not set";
+        document.getElementById('locationStatus').style.color = '#666';
+        document.getElementById('newLat').value = "";
+        document.getElementById('newLng').value = "";
+    }
+}
+
+async function handleProviderSubmit(e) {
+    e.preventDefault();
+    if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'provider')) { alert("Permission denied."); return; }
+    
+    const latInput = document.getElementById('newLat').value;
+    const lngInput = document.getElementById('newLng').value;
+    
+    if (!latInput || !lngInput) { alert("Please pick a location or enter coordinates!"); return; }
+
+    const editId = document.getElementById('editProviderId').value;
+    const fileInput = document.getElementById('providerImage');
+    
+    let imageBase64 = ""; 
+    if (editId) {
+        const existing = providers.find(p => p.id == editId);
+        imageBase64 = existing.image;
+    }
+
+    if (fileInput.files.length > 0) {
+        try { imageBase64 = await convertBase64(fileInput.files[0]); } catch (error) { console.error(error); return; }
+    }
+
+    const providerData = {
+        id: editId || null,
+        ownerId: currentUser.id,
+        name: document.getElementById('providerName').value,
+        service: document.getElementById('providerService').value,
+        phone: document.getElementById('providerPhone').value,
+        address: document.getElementById('providerAddress').value,
+        description: document.getElementById('providerDescription').value,
+        openTime: document.getElementById('providerOpenTime').value,
+        closeTime: document.getElementById('providerCloseTime').value,
+        lat: parseFloat(latInput),
+        lng: parseFloat(lngInput),
+        rating: 0, 
+        reviews: 0,
+        userReviews: [],
+        image: imageBase64
+    };
+
+    try {
+        const response = await fetch('/api/shops', {
+            method: 'POST',
+            body: JSON.stringify(providerData)
+        });
+        
+        if (response.ok) {
+            alert("Shop Saved to Cloud!");
+            closeAddProviderModal();
+            loadData(); 
+        } else {
+            alert("Error saving shop.");
+        }
+    } catch (e) {
+        console.error(e);
+        alert("Network error.");
+    }
+}
+
+function editCurrentProvider() {
+    if (!currentDetailId) return;
+    const provider = providers.find(p => p.id === currentDetailId);
+    if(provider) {
+        document.getElementById('providerDetailsModal').style.display = 'none';
+        openAddProviderModal(true, provider);
+    }
+}
+
 let currentDetailId = null;
-window.showProviderDetails = function(id) {
-    currentDetailId = id;
-    const p = providers.find(x => x.id === id);
-    document.getElementById('detailName').textContent = p.name;
+function showProviderDetails(providerId) {
+    currentDetailId = providerId;
+    const provider = providers.find(p => p.id === providerId);
+    if (!provider) return;
+    document.getElementById('detailName').textContent = provider.name;
+    document.getElementById('detailService').textContent = getServiceDisplayName(provider.service);
+    document.getElementById('detailPhone').textContent = provider.phone;
+    document.getElementById('detailAddress').textContent = provider.address;
+    
+    const isOpen = isShopOpen(provider.openTime, provider.closeTime);
+    const timingText = (provider.openTime && provider.closeTime) ? `${provider.openTime} - ${provider.closeTime}` : "No timings";
+    document.getElementById('detailTiming').textContent = timingText;
+    const badge = document.getElementById('detailStatusBadge');
+    badge.textContent = isOpen ? "Open Now" : "Closed";
+    badge.className = `status-badge ${isOpen ? 'status-open' : 'status-closed'}`;
+
+    const imgContainer = document.getElementById('detailImageContainer');
+    if (provider.image) { document.getElementById('detailImage').src = provider.image; imgContainer.style.display = 'block'; } else { imgContainer.style.display = 'none'; }
+    const stars = '★'.repeat(Math.floor(provider.rating)) + '☆'.repeat(5 - Math.floor(provider.rating));
+    document.getElementById('detailRating').innerHTML = stars;
+    document.getElementById('detailRatingValue').textContent = `(${provider.rating} / 5)`;
+    renderReviews(provider.userReviews);
+    
+    const reviewSection = document.getElementById('reviewSection');
+    const loginMsg = document.getElementById('loginToReviewMsg');
+    
+    if (currentUser && (currentUser.role === 'user' || currentUser.role === 'admin')) { reviewSection.style.display = 'block'; loginMsg.style.display = 'none'; }
+    else if (currentUser && currentUser.role === 'provider') { reviewSection.style.display = 'none'; loginMsg.style.display = 'none'; }
+    else { reviewSection.style.display = 'none'; loginMsg.style.display = 'block'; }
+
+    const ownerActions = document.getElementById('ownerActions');
+    
+    const isOwner = currentUser && (provider.ownerId == currentUser.id);
+    const isAdmin = currentUser && (currentUser.role === 'admin');
+    
+    if (isOwner || isAdmin) { 
+        ownerActions.style.display = 'flex'; 
+    } else { 
+        ownerActions.style.display = 'none'; 
+    }
+
+    document.getElementById('reviewText').value = "";
+    updateStarVisuals(0);
     document.getElementById('providerDetailsModal').style.display = 'block';
-    document.getElementById('requestStatusDisplay').style.display = 'none';
 }
-window.resetMapView = function() {
-    clearMapMarkers();
-    renderFeaturedProviders();
-    map.setView([31.4880, 74.3430], 15);
+
+function submitReview() {
+    alert("Review submission logic needs API update. Feature pending.");
 }
-window.openAdminPanel = function() { document.getElementById('adminModal').style.display = 'block'; }
+
+function deleteCurrentProvider() {
+    if (!currentDetailId) return;
+    adminDeleteShop(currentDetailId);
+}
+
+function resetMapView() {
+    searchAnchor = { ...DEFAULT_CENTER };
+    userLocation = null;
+    if (routingControl) map.removeControl(routingControl);
+    if (window.userMarker) {
+        map.removeLayer(window.userMarker);
+        window.userMarker = null; 
+    }
+    
+    if (liveTrackingId) {
+        navigator.geolocation.clearWatch(liveTrackingId);
+        liveTrackingId = null;
+    } 
+    
+    const modeDiv = document.getElementById('routeModeControls');
+    if (modeDiv) modeDiv.remove();
+
+    const sidebar = document.querySelector('.sidebar');
+    if (sidebar) sidebar.classList.remove('expanded');
+
+    map.setView([DEFAULT_CENTER.lat, DEFAULT_CENTER.lng], 16);
+    document.getElementById('searchRadius').value = 1;
+    document.getElementById('radiusValue').textContent = "1 km";
+    document.getElementById('serviceType').value = "all";
+    document.getElementById('ratingFilter').value = "0";
+    document.getElementById('toggleNarratorBtn').style.display = 'none';
+    document.getElementById('toggleRouteInfoBtn').style.display = 'none';
+    updateMapRadius(1);
+    applyFilters();
+}
+
+function createPopupContent(provider) {
+    const stars = '★'.repeat(Math.floor(provider.rating)) + '☆'.repeat(5 - Math.floor(provider.rating));
+    const imgHtml = (provider.image) ? `<div class="popup-image"><img src="${provider.image}"></div>` : '';
+    return `<div class="popup-content">${imgHtml}<h3>${provider.name}</h3><div class="popup-rating">${stars} (${provider.rating})</div><div class="popup-service"><i class="fas fa-tools"></i> ${getServiceDisplayName(provider.service)}</div><div class="popup-actions"><button class="popup-btn primary" onclick="showProviderDetails(${provider.id})">View Details</button><button class="popup-btn secondary" onclick="routeToShop(${provider.id})"><i class="fas fa-directions"></i> Route</button></div></div>`;
+}
+
+function getServiceDisplayName(serviceType) {
+    const serviceNames = { 
+        'electrician': 'Electrician', 
+        'plumber': 'Plumber', 
+        'mechanic': 'Mechanic', 
+        'carwash': 'Car/Bike Wash',
+        'carpenter': 'Carpenter',
+        'painter': 'Painter',
+        'ac_repair': 'AC Repair',
+        'welder': 'Welder'
+    };
+    return serviceNames[serviceType] || serviceType;
+}
+
+function showProviderOnMap(providerId) {
+    const provider = providers.find(p => p.id === providerId);
+    if (provider) {
+        map.setView([provider.lat, provider.lng], 16);
+        markers.forEach(marker => { if (marker.providerId === providerId) marker.openPopup(); });
+        
+        if (window.innerWidth <= 768) {
+            document.querySelector('.sidebar').classList.remove('expanded');
+        }
+    }
+}
+
+function highlightProviderCard(providerId) {
+    document.querySelectorAll('.provider-card').forEach(card => card.classList.remove('active'));
+    const activeCard = document.querySelector(`.provider-card[data-id="${providerId}"]`);
+    if (activeCard) {
+        activeCard.classList.add('active');
+        activeCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+}
+
+function setBasemap(layerName) {
+    if (currentLayer === layerName) return; 
+    if (layerName === 'osm') {
+        if (map.hasLayer(satelliteLayer)) map.removeLayer(satelliteLayer);
+        map.addLayer(osmLayer);
+        currentLayer = 'osm';
+        document.getElementById('setOsmMap').classList.add('active');
+        document.getElementById('setSatelliteMap').classList.remove('active');
+    } else {
+        if (map.hasLayer(osmLayer)) map.removeLayer(osmLayer);
+        map.addLayer(satelliteLayer);
+        currentLayer = 'satellite';
+        document.getElementById('setOsmMap').classList.remove('active');
+        document.getElementById('setSatelliteMap').classList.add('active');
+    }
+}
+
+function performSearch() {
+    const query = document.getElementById('searchInput').value.toLowerCase().trim();
+    if (query) {
+        const filtered = providers.filter(provider => provider.name.toLowerCase().includes(query) || provider.service.toLowerCase().includes(query));
+        renderProvidersList(filtered);
+        addProvidersToMap(filtered);
+        if (filtered.length > 0) {
+            map.setView([filtered[0].lat, filtered[0].lng], 16);
+            highlightProviderCard(filtered[0].id);
+            if (window.innerWidth <= 768) document.querySelector('.sidebar').classList.remove('expanded');
+        }
+    }
+}
+
+function toggleLocationPicker() {
+    isPickingLocation = true;
+    document.getElementById('addProviderModal').style.display = 'none';
+    document.getElementById('locationPickerMessage').style.display = 'block';
+    document.body.style.cursor = 'crosshair';
+}
+
+function confirmLocationPick(latlng) {
+    document.getElementById('newLat').value = latlng.lat.toFixed(6);
+    document.getElementById('newLng').value = latlng.lng.toFixed(6);
+    document.getElementById('locationStatus').textContent = `${latlng.lat.toFixed(4)}, ${latlng.lng.toFixed(4)}`;
+    document.getElementById('locationStatus').style.color = "green";
+    if (tempMarker) map.removeLayer(tempMarker);
+    tempMarker = L.marker(latlng).addTo(map).bindPopup("New Shop Location").openPopup();
+    isPickingLocation = false;
+    document.body.style.cursor = 'default';
+    document.getElementById('locationPickerMessage').style.display = 'none';
+    document.getElementById('addProviderModal').style.display = 'block';
+}
+
+function closeAddProviderModal() {
+    document.getElementById('addProviderModal').style.display = 'none';
+    document.getElementById('providerForm').reset();
+    document.getElementById('locationStatus').textContent = "Not set";
+    document.getElementById('locationStatus').style.color = "#666";
+    if (tempMarker) map.removeLayer(tempMarker);
+}
+
+function renderReviews(reviewsArr) {
+    const list = document.getElementById('reviewsList');
+    list.innerHTML = "";
+    if(!reviewsArr || reviewsArr.length === 0) { list.innerHTML = "<p style='color:#777; font-style:italic;'>No reviews yet.</p>"; return; }
+    reviewsArr.forEach(r => {
+        const item = document.createElement('div');
+        item.className = 'review-item';
+        item.innerHTML = `<div class="review-header"><strong>${r.user}</strong><span style="color:#fbbf24;">${'★'.repeat(r.rating)}</span></div><div class="review-text">${r.text}</div>`;
+        list.appendChild(item);
+    });
+}
+
+function updateStarVisuals(rating) {
+    document.querySelectorAll('.rating-stars .star').forEach(star => {
+        const starRating = parseInt(star.getAttribute('data-rating'));
+        if (starRating <= rating) star.classList.add('active');
+        else star.classList.remove('active');
+    });
+}
+
+// --- INTELLIGENT CHATBOT (UPDATED) ---
+
+function initChatbot() {
+    const toggleBtn = document.getElementById('chatbotToggle');
+    const chatWindow = document.getElementById('chatWindow');
+    const closeBtn = document.getElementById('closeChatBtn');
+    const sendBtn = document.getElementById('sendChatBtn');
+    const input = document.getElementById('chatInput');
+
+    toggleBtn.addEventListener('click', () => {
+        chatWindow.classList.toggle('open');
+        if (chatWindow.classList.contains('open')) {
+            if (document.getElementById('chatMessages').children.length === 0) {
+                appendBotMessage("Hi! I'm ServiceBot. Ask me about any button or feature on the screen!");
+            }
+        }
+    });
+
+    closeBtn.addEventListener('click', () => chatWindow.classList.remove('open'));
+    
+    const handleUserSend = async () => {
+        const text = input.value.trim();
+        if (!text) return;
+        appendUserMessage(text);
+        input.value = '';
+
+        setTimeout(() => {
+            const response = processChatCommand(text.toLowerCase());
+            appendBotMessage(response);
+        }, 500);
+    };
+
+    sendBtn.addEventListener('click', handleUserSend);
+    input.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleUserSend(); });
+}
+
+function appendUserMessage(text) {
+    const div = document.createElement('div');
+    div.className = 'message-bubble user-msg';
+    div.textContent = text;
+    const container = document.getElementById('chatMessages');
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+}
+
+function appendBotMessage(text) {
+    const div = document.createElement('div');
+    div.className = 'message-bubble bot-msg';
+    div.innerHTML = text.replace(/\n/g, '<br>');
+    const container = document.getElementById('chatMessages');
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+}
+
+function processChatCommand(cmd) {
+    // 1. BUTTON & UI EXPLANATIONS
+    if (/apply filter/.test(cmd)) {
+        return "The **Apply Filters** button updates the list of shops and the map markers based on the Service Type, Rating, and Radius you selected.";
+    }
+    if (/radius|slider|km/.test(cmd)) {
+        return "The **Search Radius** slider lets you choose how far to search. It ranges from 0.5 km to 5 km around your current location.";
+    }
+    if (/locate|location button|arrow/.test(cmd)) {
+        return "The **Locate Me** button (arrow icon) finds your exact GPS position, centers the map on you, and shows a popup with your coordinates that you can copy.";
+    }
+    if (/reset|compress|refresh/.test(cmd)) {
+        return "The **Reset Map** button clears any active routes and moves the camera back to the default Gulberg area.";
+    }
+    if (/satellite|view|osm/.test(cmd)) {
+        return "You can switch between **Street View** (standard map) and **Satellite View** (real imagery) using the map buttons on the right.";
+    }
+    if (/narrator|voice|speak/.test(cmd)) {
+        return "The **Narrator** button (speaker icon) reads out driving directions loud so you don't have to look at the screen.";
+    }
+    if (/route info|list icon/.test(cmd)) {
+        return "The **Route Info** button (list icon) toggles the text-based turn-by-turn instructions window.";
+    }
+    if (/admin panel|geoserver|layer/.test(cmd)) {
+        return "The **Admin Panel** allows authorized users to load special map layers from GeoServer (like Punjab Boundary or Shop Data).";
+    }
+
+    // 2. SEARCHING SERVICES
+    if (/find|search|show|where is|looking for/.test(cmd)) {
+        if (/carpenter/.test(cmd)) return "I have filtered the map for **Carpenters**. Look for wood-work specialists in the list.";
+        if (/plumber/.test(cmd)) return "Showing **Plumbers** near you.";
+        if (/electrician/.test(cmd)) return "Showing **Electricians** in your area.";
+        if (/mechanic|auto/.test(cmd)) return "Showing **Mechanic** shops.";
+        if (/ac|hvac/.test(cmd)) return "Showing **AC Repair** services.";
+        if (/painter/.test(cmd)) return "Showing **Painters**.";
+        if (/welder/.test(cmd)) return "Showing **Welders**.";
+        
+        return "You can use the Search Bar or Filter Dropdown to find Plumbers, Electricians, Carpenters, Painters, and more.";
+    }
+
+    // 3. GENERAL HELP
+    if (/hi|hello|help/.test(cmd)) {
+        return "Hello! I can explain any button on the screen or help you find a shop. Try asking 'What does the locate button do?' or 'Find a carpenter'.";
+    }
+
+    // 4. ROUTING
+    if (/route|navigate/.test(cmd)) {
+        return "To navigate: Click a shop marker -> Click 'View Details' -> Click 'Route'. I will draw the path and show instructions.";
+    }
+    
+    // 5. REGISTRATION
+    if (/register|signup/.test(cmd)) {
+        return "Use the **Register** button in the top header to create a new account (User or Provider).";
+    }
+
+    if (/thank/.test(cmd)) return "You're welcome!";
+
+    return "I am not sure about that. Try asking about a specific button (e.g., 'What is the radius slider?') or a service.";
+}
+
+// --- GEOSERVER LAYERS LOGIC ---
+
+function togglePunjabLayer() {
+    const btn = document.getElementById('togglePunjabBtn');
+    
+    if (punjabLayer && map.hasLayer(punjabLayer)) {
+        map.removeLayer(punjabLayer);
+        punjabLayer = null;
+        btn.textContent = "Load Punjab Layer";
+        btn.style.background = ""; 
+        btn.style.color = "";
+        btn.style.borderColor = "#d69e2e";
+    } else {
+        punjabLayer = L.tileLayer.wms(`${NGROK_HOST}/geoserver/wms`, {
+            layers: 'myprojectwebgis:punjab_boundary', 
+            format: 'image/png',
+            transparent: true,
+            version: '1.1.0',
+            tiled: false, 
+            styles: '',
+            attribution: '© Local GeoServer (Punjab)'
+        });
+        punjabLayer.addTo(map);
+        map.flyTo([31.1704, 72.7097], 7, { animate: true, duration: 1.5 });
+        
+        btn.textContent = "Hide Punjab Layer";
+        btn.style.background = "#d69e2e";
+        btn.style.color = "white";
+    }
+}
+
+// --- NEW FUNCTION: Toggle Second Layer ---
+function toggleNewLayer() {
+    const btn = document.getElementById('toggleNewLayerBtn');
+
+    if (newLayer && map.hasLayer(newLayer)) {
+        map.removeLayer(newLayer);
+        newLayer = null;
+        btn.textContent = "Shop Data Layer";
+        btn.style.background = ""; 
+        btn.style.color = "";
+    } else {
+        const layerName = 'myprojectwebgis:shops'; 
+        alert(`Attempting to load layer: ${layerName} from Admin Console`);
+
+        newLayer = L.tileLayer.wms(`${NGROK_HOST}/geoserver/wms`, {
+            layers: layerName, 
+            format: 'image/png',
+            transparent: true,
+            version: '1.1.0',
+            tiled: false, 
+            styles: '',
+            attribution: '© Local GeoServer (New Layer)'
+        });
+        newLayer.addTo(map);
+        map.flyTo([31.4880, 74.3430], 13, { animate: true, duration: 1.5 });
+        
+        btn.textContent = "Hide Shop Data";
+        btn.style.background = "#2b6cb0";
+        btn.style.color = "white";
+    }
+}
+
+// Global Exports
+window.showProviderDetails = showProviderDetails;
+window.routeToShop = routeToShop;
+window.adminDeleteUser = adminDeleteUser;
+window.adminDeleteShop = adminDeleteShop;
+window.renderAdminUserList = renderAdminUserList;
+window.renderAdminShopList = renderAdminShopList;
+window.openAddProviderModal = openAddProviderModal;
+window.updateRouteDestination = updateRouteDestination;
+window.setRouteProfile = setRouteProfile;

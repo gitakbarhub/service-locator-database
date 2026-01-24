@@ -103,14 +103,8 @@
                     
                     <div id="adminGeoPanel" class="filter-group" style="border-top: 2px dashed #cbd5e0; margin-top: 20px; padding-top: 15px; display: none;">
                         <label style="color: #d69e2e;"><i class="fas fa-server"></i> Local GeoServer (Admin)</label>
-                        
-                        <button id="togglePunjabBtn" class="btn-secondary" style="border: 1px solid #d69e2e; width: 100%; margin-bottom: 8px;">
-                            Load Punjab Layer
-                        </button>
-                        
-                        <button id="toggleNewLayerBtn" class="btn-secondary" style="border: 1px solid #2b6cb0; width: 100%;">
-                            Shop Data Layer
-                        </button>
+                        <button id="togglePunjabBtn" class="btn-secondary" style="border: 1px solid #d69e2e; width: 100%; margin-bottom: 8px;">Load Punjab Layer</button>
+                        <button id="toggleNewLayerBtn" class="btn-secondary" style="border: 1px solid #2b6cb0; width: 100%;">Shop Data Layer</button>
                     </div>
                 </div>
 
@@ -127,38 +121,21 @@
                 </div>
                 <div id="map"></div>
                 <div class="map-controls">
-                    <button id="resetMapBtn" class="map-btn" title="Reset Map View">
-                        <i class="fas fa-compress-arrows-alt"></i>
-                    </button>
-                    <button id="locateMe" class="map-btn" title="Locate Me">
-                        <i class="fas fa-location-arrow"></i>
-                    </button>
-                    <button id="setOsmMap" class="map-btn active" title="Show Street Map">
-                        <i class="fas fa-map"></i>
-                    </button>
-                    <button id="setSatelliteMap" class="map-btn" title="Show Satellite View">
-                        <i class="fas fa-satellite"></i>
-                    </button>
-                    <button id="toggleNarratorBtn" class="map-btn" title="Toggle Voice Navigation" style="display:none;">
-                        <i class="fas fa-volume-up"></i>
-                    </button>
-                    <button id="toggleRouteInfoBtn" class="map-btn" title="Toggle Route Instructions" style="display:none;">
-                        <i class="fas fa-list-ul"></i>
-                    </button>
+                    <button id="resetMapBtn" class="map-btn" title="Reset Map View"><i class="fas fa-compress-arrows-alt"></i></button>
+                    <button id="locateMe" class="map-btn" title="Locate Me"><i class="fas fa-location-arrow"></i></button>
+                    <button id="setOsmMap" class="map-btn active" title="Show Street Map"><i class="fas fa-map"></i></button>
+                    <button id="setSatelliteMap" class="map-btn" title="Show Satellite View"><i class="fas fa-satellite"></i></button>
+                    <button id="toggleNarratorBtn" class="map-btn" title="Toggle Voice Navigation" style="display:none;"><i class="fas fa-volume-up"></i></button>
+                    <button id="toggleRouteInfoBtn" class="map-btn" title="Toggle Route Instructions" style="display:none;"><i class="fas fa-list-ul"></i></button>
                 </div>
             </div>
         </div>
     </div>
 
-    <div id="chatbotToggle" class="chat-toggle-btn">
-        <i class="fas fa-robot"></i>
-    </div>
-
+    <div id="chatbotToggle" class="chat-toggle-btn"><i class="fas fa-robot"></i></div>
     <div id="chatWindow" class="chat-window">
         <div class="chat-header draggable-header">
-            <div class="chat-title">
-                <i class="fas fa-robot"></i> ServiceBot
-            </div>
+            <div class="chat-title"><i class="fas fa-robot"></i> ServiceBot</div>
             <button id="closeChatBtn" class="chat-close-btn">&times;</button>
         </div>
         <div id="chatMessages" class="chat-messages"></div>
@@ -178,15 +155,15 @@
             </form>
         </div>
     </div>
-    
+
     <div id="registerModal" class="modal">
         <div class="modal-content small-modal">
             <div class="modal-header draggable-header"><h2>Register</h2><span class="close">&times;</span></div>
             <form id="registerForm">
                 <div class="form-group"><label>Username</label><input type="text" id="regUsername" required></div>
                 <div class="form-group"><label>Password</label><input type="password" id="regPassword" required></div>
-                <div class="form-group"><label>Role</label><select id="regRole"><option value="user">User</option><option value="provider">Service Provider</option></select></div>
-                <div class="form-group"><label>Security Q</label><select id="regSecurityQuestion"><option value="city">City?</option></select></div>
+                <div class="form-group"><label>Account Type</label><select id="regRole"><option value="user">User</option><option value="provider">Service Provider</option></select></div>
+                <div class="form-group"><label>Security Question</label><select id="regSecurityQuestion"><option value="city">What city were you born in?</option></select></div>
                 <div class="form-group"><label>Answer</label><input type="text" id="regSecurityAnswer" required></div>
                 <div class="form-actions"><button type="submit" class="btn-primary">Register</button></div>
             </form>
@@ -236,52 +213,32 @@
                 <img id="detailImage" src="" alt="Shop Image" style="width:100%; height:100%; object-fit:cover;">
             </div>
             <div class="provider-details">
-                <div class="detail-item">
-                    <i class="fas fa-clock"></i>
-                    <span id="detailTiming"></span> 
-                    <span id="detailStatusBadge" class="status-badge"></span>
-                </div>
-                <div class="detail-item">
-                    <i class="fas fa-wrench"></i>
-                    <span id="detailService"></span>
-                </div>
-                <div class="detail-item">
-                    <i class="fas fa-phone"></i>
-                    <span id="detailPhone"></span>
-                </div>
-                <div class="detail-item">
-                    <i class="fas fa-map-marker-alt"></i>
-                    <span id="detailAddress"></span>
-                </div>
+                <div class="detail-item"><i class="fas fa-clock"></i><span id="detailTiming"></span> <span id="detailStatusBadge" class="status-badge"></span></div>
+                <div class="detail-item"><i class="fas fa-wrench"></i><span id="detailService"></span></div>
+                <div class="detail-item"><i class="fas fa-phone"></i><span id="detailPhone"></span></div>
+                <div class="detail-item"><i class="fas fa-map-marker-alt"></i><span id="detailAddress"></span></div>
                 
                 <div style="display:flex; gap:10px; margin: 0 1.5rem 1rem 1.5rem; flex-direction: column;">
                     <button id="getDirectionsBtn" class="btn-secondary" style="width:100%;">
                         <i class="fas fa-directions"></i> Route (Me &rarr; Shop)
                     </button>
-                    
                     <button id="sendRequestBtn" class="btn-primary" style="width:100%; padding: 12px; font-size: 1.1rem; background: #38a169;">
                         <i class="fas fa-paper-plane"></i> Send Service Request
                     </button>
-                    
                     <div id="requestStatusDisplay" style="display:none; text-align:center; padding:10px; background:#f0fff4; border:1px solid #c6f6d5; border-radius:8px;">
-                        <strong>Request Status:</strong> 
-                        <span id="reqStatusText">Sent</span> 
-                        <span id="reqStatusIcon">
-                            <i class="fas fa-check" style="color:gray;"></i>
-                        </span>
+                        <strong>Request Status:</strong> <span id="reqStatusText">Sent</span> <span id="reqStatusIcon"><i class="fas fa-check" style="color:gray;"></i></span>
                     </div>
                 </div>
                 
                 <div class="rating-section">
-                    <div class="current-rating">
-                        <span>Rating: </span>
-                        <div class="stars" id="detailRating"></div>
-                    </div>
-                    <div id="reviewSection" class="add-rating" style="display:none;">
-                        </div>
+                    <div class="current-rating"><span>Rating: </span><div class="stars" id="detailRating"></div></div>
                     <div class="reviews-list-container">
                         <h4>Recent Reviews</h4>
                         <div id="reviewsList" class="reviews-list"></div>
+                    </div>
+                    <div id="ownerActions" style="margin-top: 2rem; border-top: 1px solid #eee; padding-top: 1rem; display:none; flex-direction: column; gap:10px;">
+                        <button id="editProviderBtn" class="btn-secondary" style="width: 100%;"><i class="fas fa-edit"></i> Modify Shop</button>
+                        <button id="deleteProviderBtn" class="btn-danger" style="width: 100%;"><i class="fas fa-trash"></i> Delete This Shop</button>
                     </div>
                 </div>
             </div>
@@ -290,14 +247,13 @@
 
     <div id="adminModal" class="modal">
         <div class="modal-content">
-            <div class="modal-header draggable-header">
-                <h2>Admin Panel</h2> <span class="close">&times;</span>
-            </div>
+            <div class="modal-header draggable-header"><h2>Admin Panel</h2><span class="close">&times;</span></div>
             <div style="padding: 20px;">
                 <div class="dashboard-stats">
                     <div class="stat-card" id="statShops"><h3>Total Shops</h3><span id="adminTotalShops">0</span></div>
+                    <div class="stat-card" id="statUsers"><h3>Total Users</h3><span id="adminTotalUsers">Click to View</span></div>
                 </div>
-                <div id="adminListContainer" class="admin-list-container"></div>
+                <div id="adminListSection" style="display:none; margin-top: 20px;"><h3 id="adminListTitle">List</h3><div id="adminListContainer" class="admin-list-container"></div></div>
             </div>
         </div>
     </div>
@@ -320,8 +276,8 @@
                         <option value="welder">Welder</option>
                     </select>
                 </div>
-                <div class="form-group"><label>Times</label><input type="time" id="providerOpenTime"> <input type="time" id="providerCloseTime"></div>
-                <div class="form-group"><label>Location</label><input type="number" id="newLat" step="any" placeholder="Lat"><input type="number" id="newLng" step="any" placeholder="Lng"><button type="button" id="pickLocationBtn">Pick on Map</button><span id="locationStatus"></span></div>
+                <div class="form-group"><label>Times</label><div style="display:flex; gap:10px;"><input type="time" id="providerOpenTime" style="flex:1"><input type="time" id="providerCloseTime" style="flex:1"></div></div>
+                <div class="form-group"><label>Location</label><div style="display:flex; gap:10px;"><input type="number" id="newLat" step="any" placeholder="Lat" style="flex:1"><input type="number" id="newLng" step="any" placeholder="Lng" style="flex:1"></div><div style="margin-top:5px;"><button type="button" id="pickLocationBtn" class="btn-secondary" style="width:100%;">Pick on Map</button><span id="locationStatus" style="display:none; color:green; font-size:0.9rem;">Set</span></div></div>
                 <div class="form-group"><label>Phone</label><input type="tel" id="providerPhone" required></div>
                 <div class="form-group"><label>Address</label><input type="text" id="providerAddress" required></div>
                 <div class="form-group"><label>Image</label><input type="file" id="providerImage"></div>

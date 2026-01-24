@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initChatbot(); 
     initDraggable(); 
     
-    // Req 10: Polling for notifications
+    // Polling for notifications
     setInterval(checkNotifications, 10000);
 });
 
@@ -44,19 +44,17 @@ async function loadData() {
         if(Array.isArray(data)) {
             providers = data.map(p => ({...p, lat: parseFloat(p.lat), lng: parseFloat(p.lng)}));
         }
-        // Req 2: Don't show all initially. Req 6: Show Top 4 Best
         renderInitialBest();
     } catch (error) {
         console.error("Error loading cloud data:", error);
     }
 }
 
-// Req 6: Show top 4 best rated (one from each category if possible)
+// Show top 4 best rated (one from each category)
 function renderInitialBest() {
     const container = document.getElementById('providersContainer');
     container.innerHTML = '';
     
-    // Group by service
     const grouped = {};
     providers.forEach(p => {
         if(!grouped[p.service]) grouped[p.service] = [];
@@ -65,18 +63,15 @@ function renderInitialBest() {
     
     let bestPicks = [];
     Object.keys(grouped).forEach(service => {
-        // Sort by rating desc
         grouped[service].sort((a,b) => b.rating - a.rating);
         bestPicks.push(grouped[service][0]); // Pick best 1
     });
     
-    // Sort picks by rating and take top 4
     bestPicks.sort((a,b) => b.rating - a.rating);
     const top4 = bestPicks.slice(0, 4);
     
-    renderProvidersList(top4, true); // true = allow "See More"
-    
-    // Req 2: No Map Icons Initially
+    renderProvidersList(top4, true); 
+    // Req: Don't show icons on map initially
     markers.forEach(m => map.removeLayer(m));
     markers = [];
 }
@@ -176,24 +171,26 @@ function updateUIForUser() {
     document.getElementById('loggedInView').style.display = 'flex';
     document.getElementById('welcomeUser').textContent = `Hi, ${currentUser.username}`;
     
+    // Reset buttons
+    document.getElementById('addProviderBtn').style.display = 'none';
+    document.getElementById('adminPanelBtn').style.display = 'none';
+    document.getElementById('adminNotifBtn').style.display = 'none';
+    document.getElementById('providerPanelBtn').style.display = 'none';
+
     if (currentUser.role === 'admin' || currentUser.role === 'provider') {
         document.getElementById('addProviderBtn').style.display = 'inline-block';
-    } else {
-        document.getElementById('addProviderBtn').style.display = 'none';
     }
 
     if (currentUser.role === 'admin') {
         document.getElementById('adminPanelBtn').style.display = 'inline-block';
+        document.getElementById('adminNotifBtn').style.display = 'inline-block';
         if(document.getElementById('adminGeoPanel')) document.getElementById('adminGeoPanel').style.display = 'block';
     } else {
-        document.getElementById('adminPanelBtn').style.display = 'none';
         if(document.getElementById('adminGeoPanel')) document.getElementById('adminGeoPanel').style.display = 'none';
     }
     
     if (currentUser.role === 'provider') {
         document.getElementById('providerPanelBtn').style.display = 'inline-block';
-    } else {
-        document.getElementById('providerPanelBtn').style.display = 'none';
     }
 }
 
@@ -202,6 +199,7 @@ function updateUIForGuest() {
     document.getElementById('loggedInView').style.display = 'none';
     document.getElementById('addProviderBtn').style.display = 'none';
     document.getElementById('adminPanelBtn').style.display = 'none';
+    document.getElementById('adminNotifBtn').style.display = 'none';
     document.getElementById('providerPanelBtn').style.display = 'none';
     if(document.getElementById('adminGeoPanel')) document.getElementById('adminGeoPanel').style.display = 'none';
 }
@@ -226,16 +224,14 @@ function initializeMap() {
 }
 
 function initializeEventListeners() {
+    // REQ 3: Search Bar
     document.getElementById('searchBtn').addEventListener('click', performSearch);
-    
-    // Req 9: Smart Search Input
     const searchInput = document.getElementById('searchInput');
     searchInput.addEventListener('input', handleSearchInput);
     searchInput.addEventListener('keypress', function(e) { if (e.key === 'Enter') performSearch(); });
     
     document.getElementById('applyFilters').addEventListener('click', applyFilters);
     document.getElementById('seeMoreBtn').addEventListener('click', showAllFilteredShops);
-    
     document.getElementById('searchRadius').addEventListener('change', applyFilters);
     document.getElementById('locateMe').addEventListener('click', () => locateUser());
     document.getElementById('resetMapBtn').addEventListener('click', resetMapView);
@@ -261,21 +257,24 @@ function initializeEventListeners() {
     document.getElementById('providerForm').addEventListener('submit', handleProviderSubmit);
     document.getElementById('pickLocationBtn').addEventListener('click', toggleLocationPicker);
     
-    // Req 8 & 11: Service Request
     document.getElementById('sendRequestBtn').addEventListener('click', openServiceRequestModal);
     document.getElementById('serviceRequestForm').addEventListener('submit', submitServiceRequest);
     
-    // Req 14: Help
-    document.getElementById('helpBtnNav').addEventListener('click', () => document.getElementById('helpModal').style.display = 'block');
-    document.getElementById('helpBtnUser').addEventListener('click', () => document.getElementById('helpModal').style.display = 'block');
+    // Help Logic
+    document.getElementById('helpBtnNav').addEventListener('click', () => { document.getElementById('helpModal').style.display = 'block'; document.getElementById('helpRole').value = 'new'; });
+    document.getElementById('helpBtnUser').addEventListener('click', () => { document.getElementById('helpModal').style.display = 'block'; document.getElementById('helpRole').value = 'user'; });
     document.getElementById('helpForm').addEventListener('submit', submitHelpForm);
     
     document.getElementById('loginBtnNav').addEventListener('click', () => document.getElementById('loginModal').style.display = 'block');
     document.getElementById('registerBtnNav').addEventListener('click', () => document.getElementById('registerModal').style.display = 'block');
     document.getElementById('logoutBtn').addEventListener('click', logout);
     
-    // Req 1: Admin Panel
+    // REQ 2: Admin Dashboard & REQ 1: Notifications
     document.getElementById('adminPanelBtn').addEventListener('click', openAdminPanel);
+    document.getElementById('adminNotifBtn').addEventListener('click', openAdminNotifications);
+    document.getElementById('statUsers').addEventListener('click', renderAdminUserList);
+    document.getElementById('statShops').addEventListener('click', renderAdminShopList);
+    
     document.getElementById('providerPanelBtn').addEventListener('click', openProviderRequests);
     
     document.getElementById('loginForm').addEventListener('submit', function(e) { e.preventDefault(); login(document.getElementById('loginUsername').value, document.getElementById('loginPassword').value); });
@@ -285,7 +284,7 @@ function initializeEventListeners() {
     window.addEventListener('click', function(event) { document.querySelectorAll('.modal').forEach(modal => { if (event.target === modal) modal.style.display = 'none'; }); });
 }
 
-// Req 9: Smart Search Logic
+// REQ 3: Complete Search Logic
 function handleSearchInput(e) {
     const val = e.target.value.toLowerCase();
     const suggestions = document.getElementById('searchSuggestions');
@@ -294,7 +293,7 @@ function handleSearchInput(e) {
     
     if (!val) return;
 
-    // Mapping 'e' -> Electrician, 'c' -> Carpenter/Mechanic
+    // Smart Keywords
     const keywords = [
         { key: 'e', match: 'Electrician' },
         { key: 'elec', match: 'Electrician' },
@@ -308,9 +307,10 @@ function handleSearchInput(e) {
         { key: 'pain', match: 'Painter' }
     ];
 
-    const matches = keywords.filter(k => k.key.startsWith(val) || val.startsWith(k.key));
-    // Unique matches
-    const unique = [...new Set(matches.map(m => m.match))];
+    const keywordMatches = keywords.filter(k => k.key.startsWith(val) || val.startsWith(k.key)).map(m => m.match);
+    const nameMatches = providers.filter(p => p.name.toLowerCase().includes(val)).map(p => p.name);
+    
+    const unique = [...new Set([...keywordMatches, ...nameMatches])];
     
     if (unique.length > 0) {
         suggestions.style.display = 'block';
@@ -321,24 +321,46 @@ function handleSearchInput(e) {
             div.onclick = () => {
                 document.getElementById('searchInput').value = svc;
                 suggestions.style.display = 'none';
-                filterByServiceText(svc.toLowerCase());
+                performSearch();
             };
             suggestions.appendChild(div);
         });
     }
 }
 
-function filterByServiceText(text) {
-    // Convert display name to db value
-    const mapSvc = { 'electrician':'electrician', 'plumber':'plumber', 'mechanic':'mechanic', 'carpenter':'carpenter', 'painter':'painter', 'ac repair':'ac_repair', 'welder':'welder', 'car/bike wash':'carwash' };
-    const svcKey = Object.keys(mapSvc).find(k => k.includes(text) || text.includes(k));
-    const dbValue = mapSvc[svcKey] || text;
+function performSearch() {
+    const query = document.getElementById('searchInput').value.toLowerCase().trim();
+    document.getElementById('searchSuggestions').style.display = 'none';
+    if (!query) return;
+
+    // Filter Logic
+    const filtered = providers.filter(provider => 
+        provider.name.toLowerCase().includes(query) || 
+        provider.service.toLowerCase().includes(query) ||
+        getServiceDisplayName(provider.service).toLowerCase().includes(query)
+    );
     
-    document.getElementById('serviceType').value = dbValue;
-    applyFilters(); 
+    if (filtered.length > 0) {
+        currentFilteredProviders = filtered;
+        renderProvidersList(filtered, filtered.length > 4);
+        addProvidersToMap(filtered);
+        
+        // Zoom to best match
+        const best = filtered[0];
+        map.setView([best.lat, best.lng], 16);
+        highlightProviderCard(best.id);
+        
+        // Auto-select filter dropdown if matches service
+        const mapSvc = { 'electrician':'electrician', 'plumber':'plumber', 'mechanic':'mechanic', 'carpenter':'carpenter', 'painter':'painter', 'ac repair':'ac_repair', 'welder':'welder', 'car/bike wash':'carwash' };
+        for(let key in mapSvc) {
+            if(query.includes(key)) document.getElementById('serviceType').value = mapSvc[key];
+        }
+    } else {
+        alert("No shops found matching '" + query + "'");
+    }
 }
 
-// Req 14: Help Logic
+// REQ 6: Help Form with 'New' Logic
 async function submitHelpForm(e) {
     e.preventDefault();
     const name = document.getElementById('helpName').value;
@@ -351,41 +373,90 @@ async function submitHelpForm(e) {
             body: JSON.stringify({
                 type: 'help',
                 userName: name,
-                userAddress: role, // Reusing field for Role
+                userAddress: role, // Storing role in address field for help msg
                 userLat: 0, userLng: 0,
-                providerId: 0, // 0 for Admin
-                userPhone: prob // Reusing field for problem
+                providerId: 0, // 0 = Admin
+                userPhone: prob // Storing problem in phone field
             })
         });
-        if(res.ok) { alert("Message sent to Admin!"); document.getElementById('helpModal').style.display='none'; }
+        if(res.ok) { alert("Message sent to Admin!"); document.getElementById('helpModal').style.display='none'; document.getElementById('helpForm').reset(); }
     } catch(err) { console.error(err); alert("Failed to send."); }
 }
 
-async function openAdminPanel() {
+function openAdminPanel() {
     document.getElementById('adminTotalUsers').textContent = "Click to View";
     document.getElementById('adminTotalShops').textContent = providers.length;
+    document.getElementById('adminListSection').style.display = 'none'; // Hide list initially
     document.getElementById('adminModal').style.display = 'block';
+}
+
+// REQ 1: Admin Notifications Logic
+async function openAdminNotifications() {
+    document.getElementById('adminNotifModal').style.display = 'block';
+    const container = document.getElementById('adminNotifListContainer');
+    container.innerHTML = '<div style="padding:10px;text-align:center;">Loading...</div>';
     
-    // Load Help Messages
     try {
-        // We use providerId=0 for help messages
         const res = await fetch('/api/requests?providerId=0');
         const msgs = await res.json();
-        document.getElementById('adminTotalHelp').textContent = msgs.length;
         
-        const helpList = document.getElementById('adminListContainer');
-        helpList.innerHTML = '';
+        container.innerHTML = '';
+        if(msgs.length === 0) {
+            container.innerHTML = '<div style="padding:15px; text-align:center;">No notifications.</div>';
+            return;
+        }
+        
         msgs.forEach(m => {
             const div = document.createElement('div');
             div.className = 'admin-list-item';
-            div.innerHTML = `<div><strong>${m.user_name}</strong> (${m.user_address})<br><small>${m.user_phone}</small></div>`;
-            helpList.appendChild(div);
+            div.innerHTML = `
+                <div>
+                    <strong>${m.user_name}</strong> <span class="badge" style="position:static; background:#667eea;">${m.user_address}</span>
+                    <br><small>${m.user_phone}</small>
+                </div>`;
+            container.appendChild(div);
         });
-        
-    } catch(e) { console.error(e); }
+    } catch(e) { container.innerHTML = 'Error loading notifications.'; }
 }
 
-// Req 8 & 11: Service Request Logic
+// REQ 2: Admin Dashboard Click Handlers
+async function renderAdminUserList() {
+    const listSection = document.getElementById('adminListSection');
+    const container = document.getElementById('adminListContainer');
+    document.getElementById('adminListTitle').textContent = "All Users";
+    listSection.style.display = 'block';
+    container.innerHTML = 'Loading...';
+
+    try {
+        const response = await fetch('/api/users?action=list');
+        const users = await response.json();
+        document.getElementById('adminTotalUsers').textContent = users.length;
+        container.innerHTML = '';
+        if (users.length === 0) container.innerHTML = 'No users found.';
+        users.forEach(user => {
+            const item = document.createElement('div');
+            item.className = 'admin-list-item';
+            item.innerHTML = `<div class="item-info"><strong>${user.username}</strong><small>${user.role}</small></div>`;
+            container.appendChild(item);
+        });
+    } catch (error) { container.innerHTML = 'Error fetching users.'; }
+}
+
+function renderAdminShopList() {
+    const listSection = document.getElementById('adminListSection');
+    const container = document.getElementById('adminListContainer');
+    document.getElementById('adminListTitle').textContent = "All Shops";
+    listSection.style.display = 'block';
+    container.innerHTML = '';
+    if (providers.length === 0) { container.innerHTML = 'No shops found.'; return; }
+    providers.forEach(p => {
+        const item = document.createElement('div');
+        item.className = 'admin-list-item';
+        item.innerHTML = `<div class="item-info"><strong>${p.name}</strong><small>${getServiceDisplayName(p.service)}</small></div>`;
+        container.appendChild(item);
+    });
+}
+
 function openServiceRequestModal() {
     if(!currentUser) { alert("Please login to send a request."); return; }
     if(!currentDetailId) return;
@@ -402,7 +473,6 @@ async function submitServiceRequest(e) {
         locateUser(() => submitServiceRequest(e));
         return;
     }
-    
     const data = {
         providerId: document.getElementById('reqProviderId').value,
         userId: currentUser.id,
@@ -412,39 +482,32 @@ async function submitServiceRequest(e) {
         userLat: userLocation.lat,
         userLng: userLocation.lng
     };
-    
     try {
         const res = await fetch('/api/requests', { method: 'POST', body: JSON.stringify(data) });
         if(res.ok) {
-            alert("Request Sent! Wait for provider response.");
+            alert("Request Sent!");
             document.getElementById('serviceRequestModal').style.display = 'none';
-            // Start tracking status
         }
     } catch(err) { alert("Error sending request."); }
 }
 
-// Req 10: Polling / Status Ticks
 async function checkNotifications() {
     if(!currentUser) return;
-    
-    // For Provider
-    if(currentUser.role === 'provider' || currentUser.role === 'admin') {
+    if(currentUser.role === 'admin') {
+        try {
+            const res = await fetch('/api/requests?providerId=0');
+            const msgs = await res.json();
+            document.getElementById('adminNotifBadge').textContent = msgs.length;
+            if(msgs.length > 0) document.getElementById('adminNotifBadge').style.display = 'block';
+        } catch(e) {}
+    }
+    if(currentUser.role === 'provider') {
         try {
             const res = await fetch(`/api/requests?providerId=${currentUser.id}`);
             const reqs = await res.json();
             const pending = reqs.filter(r => r.status === 'sent');
             document.getElementById('reqBadge').textContent = pending.length;
-            if(pending.length > 0) document.getElementById('providerPanelBtn').classList.add('btn-danger');
         } catch(e) {}
-    }
-    
-    // For User: Check status of latest request to current viewed provider
-    if(currentUser.role === 'user' && currentDetailId) {
-        // We need a way to check MY request to THIS provider. 
-        // Simply reusing the endpoint is tricky without specific user filter. 
-        // For now, we assume a single request checking endpoint or filter on client.
-        // Simplified: User checks ticket by ID if saved, or we can't easily without API change.
-        // Assuming user can see status in "My History" (not implemented) or on the Provider Modal if reopened.
     }
 }
 
@@ -453,57 +516,33 @@ async function openProviderRequests() {
     const container = document.getElementById('requestsListContainer');
     modal.style.display = 'block';
     container.innerHTML = 'Loading...';
-    
     try {
         const res = await fetch(`/api/requests?providerId=${currentUser.id}`);
         const list = await res.json();
         container.innerHTML = '';
         if(list.length === 0) container.innerHTML = 'No requests.';
-        
         list.forEach(req => {
             const item = document.createElement('div');
             item.className = 'admin-list-item';
-            // Req 11: Show Name, Phone, Address, Location
-            item.innerHTML = `
-                <div>
-                    <strong>${req.user_name}</strong> (${req.user_phone})<br>
-                    ${req.user_address || 'No address'} <br>
-                    <small>Status: ${req.status}</small>
-                </div>
-                <div>
-                    <button class="btn-primary" onclick="acceptRequest(${req.id}, ${req.user_lat}, ${req.user_lng})" style="padding:5px; font-size:0.8rem;">Route</button>
-                </div>`;
+            item.innerHTML = `<div><strong>${req.user_name}</strong> (${req.user_phone})<br>${req.user_address||''}<br><small>Status: ${req.status}</small></div><div><button class="btn-primary" onclick="acceptRequest(${req.id}, ${req.user_lat}, ${req.user_lng})" style="padding:5px;">Route</button></div>`;
             container.appendChild(item);
         });
     } catch(e) { container.innerHTML = 'Error.'; }
 }
 
 window.acceptRequest = async function(reqId, lat, lng) {
-    // Update status to 'seen' (double blue tick)
     await fetch('/api/requests', { method: 'PATCH', body: JSON.stringify({ requestId: reqId, status: 'seen' }) });
-    
     document.getElementById('providerRequestsModal').style.display = 'none';
-    
-    // Route from Provider (shop) to User (lat, lng)
-    // Find my shop
     const myShop = providers.find(p => p.ownerId === currentUser.id);
     if(myShop) {
-        userLocation = { lat: lat, lng: lng }; // Pretend user location is destination
-        // Logic inversion: Provider is Start, User is End
-        // We use the existing routeToShop logic but override the points
-        
-        // Manual routing setup
         if (routingControl) map.removeControl(routingControl);
         routingControl = L.Routing.control({
             waypoints: [ L.latLng(myShop.lat, myShop.lng), L.latLng(lat, lng) ],
             router: L.Routing.osrmv1({ serviceUrl: 'https://router.project-osrm.org/route/v1', profile: 'driving' }),
             lineOptions: { styles: [{color: '#667eea', opacity: 1, weight: 5}] }
         }).addTo(map);
-        
         map.closePopup();
         alert("Routing to Customer Location...");
-    } else {
-        alert("You don't have a shop set up.");
     }
 };
 
@@ -524,12 +563,10 @@ function applyFilters() {
         return matchService && matchRating && matchDistance;
     });
     
-    // Req 3: If filtering by specific service, show all. If 'all', show top 4.
     if(serviceType !== 'all') {
-        renderProvidersList(currentFilteredProviders, false); // Show all
+        renderProvidersList(currentFilteredProviders, false);
         addProvidersToMap(currentFilteredProviders);
     } else {
-        // Initial state logic (Top 4)
         renderInitialBest();
     }
 }
@@ -556,7 +593,8 @@ function renderProvidersList(listToRender, showSeeMore = false) {
             <div class="provider-header"><div><div class="provider-name">${provider.name}</div><span class="provider-service">${getServiceDisplayName(provider.service)}</span></div></div>
             <div class="provider-rating"><span class="stars">${stars}</span><span>${provider.rating}</span><span class="status-badge ${isOpen?'status-open':'status-closed'}">${isOpen?'Open':'Closed'}</span></div>
             <div class="provider-address"><i class="fas fa-map-marker-alt"></i> ${provider.address}</div>`;
-         // Req 3: Click specific shop -> Show ONLY that shop
+         
+         // REQ 4: Zoom to provider on click
          card.addEventListener('click', function() { 
              showSingleProviderOnMap(provider); 
              highlightProviderCard(provider.id); 
@@ -568,10 +606,9 @@ function renderProvidersList(listToRender, showSeeMore = false) {
 }
 
 function showSingleProviderOnMap(provider) {
-    // Clear map
     markers.forEach(m => map.removeLayer(m));
     markers = [];
-    // Add single
+    // Zoom and show
     const marker = L.marker([provider.lat, provider.lng]).addTo(map).bindPopup(createPopupContent(provider)).openPopup();
     marker.providerId = provider.id;
     markers.push(marker);
@@ -582,94 +619,46 @@ function addProvidersToMap(listToRender) {
     markers.forEach(marker => map.removeLayer(marker));
     markers = [];
     listToRender.forEach(provider => {
+        // REQ 5: Ensure popup binds and click works
         const marker = L.marker([provider.lat, provider.lng]).addTo(map).bindPopup(createPopupContent(provider));
         marker.providerId = provider.id;
         marker.on('click', function() { 
-            // Req 12 Fix: Show details when icon clicked
+            marker.openPopup();
             highlightProviderCard(provider.id); 
         });
         markers.push(marker);
     });
 }
 
-function performSearch() {
-    const query = document.getElementById('searchInput').value.toLowerCase().trim();
-    if (query) {
-        // Req 9: If specific keyword 'carp', map to carpenter
-        if (query === 'carp') document.getElementById('serviceType').value = 'carpenter';
-        
-        const filtered = providers.filter(provider => provider.name.toLowerCase().includes(query) || provider.service.toLowerCase().includes(query));
-        currentFilteredProviders = filtered;
-        
-        // Req 6: Pagination applies to search too if too many results? User said "see more option is also applied when... search".
-        // If results > 4, show top 4 + See More.
-        if (filtered.length > 4) {
-            const top4 = filtered.slice(0, 4);
-            renderProvidersList(top4, true);
-            // Don't add all to map yet until See More? "not shop show in map unless... search"
-            // If they searched, we show. But if truncated list, maybe truncate map?
-            // "Show all electrician in map... when click option electrician".
-            // Let's show all on map for search results.
-            addProvidersToMap(filtered);
-        } else {
-            renderProvidersList(filtered, false);
-            addProvidersToMap(filtered);
-        }
-        
-        if (filtered.length > 0) {
-            map.setView([filtered[0].lat, filtered[0].lng], 16);
-        }
-    }
-}
-
-// --- CHATBOT INTELLIGENCE (Req 7) ---
-function processChatCommand(cmd) {
-    // Logic: "Problem" -> Find Best Service
-    if (/pipe|leak|water|sink/.test(cmd)) return recommendBest('plumber');
-    if (/wire|spark|light|power/.test(cmd)) return recommendBest('electrician');
-    if (/wood|furniture|door/.test(cmd)) return recommendBest('carpenter');
-    if (/car|engine|bike|tire/.test(cmd)) return recommendBest('mechanic');
-    if (/hot|cool|ac|air/.test(cmd)) return recommendBest('ac_repair');
-    
-    if (/apply filter/.test(cmd)) return "The **Apply Filters** button updates the list.";
-    if (/register/.test(cmd)) return "Click **Register** to create an account.";
-    if (/help/.test(cmd)) return "I can help! Tell me your problem (e.g., 'water leak') and I'll find the best professional.";
-    
-    return "I'm not sure. Try telling me your problem like 'car issue' or 'broken door'.";
-}
-
-function recommendBest(serviceType) {
-    const list = providers.filter(p => p.service === serviceType).sort((a,b) => b.rating - a.rating);
-    if(list.length > 0) {
-        const best = list[0];
-        return `For that problem, I recommend **${best.name}**. They are the best rated ${getServiceDisplayName(serviceType)} (${best.rating}★).`;
-    }
-    return `You need a ${getServiceDisplayName(serviceType)}, but I don't see one nearby right now.`;
-}
-
-// Helper functions like openAddProviderModal, etc., remain similar but ensure they don't break logic.
-// (Included in previous script block but ensuring they exist)
-function openAddProviderModal(editMode=false, provider=null) { document.getElementById('addProviderModal').style.display='block'; /* ... logic from original ... */ }
+// Helpers
+function openAddProviderModal(editMode=false, provider=null) { document.getElementById('addProviderModal').style.display='block'; }
 function closeAddProviderModal() { document.getElementById('addProviderModal').style.display='none'; }
-function handleProviderSubmit(e) { /* ... original logic ... */ }
+function handleProviderSubmit(e) { /* existing logic */ }
 function toggleLocationPicker() { isPickingLocation = true; document.getElementById('addProviderModal').style.display='none'; document.getElementById('locationPickerMessage').style.display='block'; document.body.style.cursor='crosshair'; }
 function confirmLocationPick(latlng) { document.getElementById('newLat').value=latlng.lat.toFixed(6); document.getElementById('newLng').value=latlng.lng.toFixed(6); document.getElementById('locationStatus').textContent="Location Picked"; isPickingLocation=false; document.body.style.cursor='default'; document.getElementById('locationPickerMessage').style.display='none'; document.getElementById('addProviderModal').style.display='block'; }
-function isShopOpen(open, close) { return true; /* Simplified for brevity */ }
+function isShopOpen(open, close) { return true; }
 function getServiceDisplayName(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 function updateMapRadius(r) { if(searchRadiusCircle) map.removeLayer(searchRadiusCircle); searchRadiusCircle = L.circle([searchAnchor.lat, searchAnchor.lng], { color: '#667eea', fillColor: '#667eea', fillOpacity: 0.15, radius: r*1000 }).addTo(map); }
 function setBasemap(l) { if(l==='osm'){ map.addLayer(osmLayer); map.removeLayer(satelliteLayer); } else { map.addLayer(satelliteLayer); map.removeLayer(osmLayer); } }
 function toggleNarrator() { narratorEnabled=!narratorEnabled; }
 function toggleRouteWindow() { document.querySelector('.leaflet-routing-container').classList.toggle('hidden-instructions'); }
-function togglePunjabLayer() { /* ... original ... */ }
-function toggleNewLayer() { /* ... original ... */ }
-function initChatbot() { /* ... original ... */ }
+function togglePunjabLayer() { /* ... */ }
+function toggleNewLayer() { /* ... */ }
+function initChatbot() { /* ... */ }
+function createPopupContent(provider) {
+    const stars = '★'.repeat(Math.floor(provider.rating)) + '☆'.repeat(5 - Math.floor(provider.rating));
+    return `<div class="popup-content"><h3>${provider.name}</h3><div class="popup-rating">${stars} (${provider.rating})</div><div class="popup-service"><i class="fas fa-tools"></i> ${getServiceDisplayName(provider.service)}</div><div class="popup-actions"><button class="popup-btn primary" onclick="showProviderDetails(${provider.id})">View Details</button><button class="popup-btn secondary" onclick="showProviderDetails(${provider.id})"><i class="fas fa-ticket-alt"></i> Request</button></div></div>`;
+}
+
 function highlightProviderCard(id) { 
     currentDetailId = id; 
-    const p = providers.find(x => x.id == id);
-    if(p) showProviderDetails(p.id); 
+    document.querySelectorAll('.provider-card').forEach(card => card.classList.remove('active'));
+    const activeCard = document.querySelector(`.provider-card[data-id="${id}"]`);
+    if (activeCard) {
+        activeCard.classList.add('active');
+        activeCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
 }
-// Show Details Logic (Req 12 fixed inside highlightProviderCard triggering showProviderDetails)
-let currentDetailId = null;
 function showProviderDetails(id) {
     currentDetailId = id;
     const p = providers.find(x => x.id == id);
@@ -679,24 +668,29 @@ function showProviderDetails(id) {
     document.getElementById('detailAddress').textContent = p.address;
     document.getElementById('detailRating').textContent = p.rating;
     document.getElementById('providerDetailsModal').style.display = 'block';
-    // Req 10: Check status
-    const tick = document.getElementById('reqStatusTick');
-    tick.className = 'tick-icon'; // Reset
-    // Note: To show actual status, we need to fetch user requests. For this demo, we assume no active request unless set.
 }
+
+// REQ 7: Locate Me with Copy
 function locateUser(cb) {
     if(!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(p => {
         userLocation = { lat: p.coords.latitude, lng: p.coords.longitude };
         searchAnchor = userLocation;
-        // Draw user marker
         if(window.userMarker) map.removeLayer(window.userMarker);
-        window.userMarker = L.marker([userLocation.lat, userLocation.lng]).addTo(map).bindPopup("You are here");
+        
+        const content = `
+            <div style="text-align:center;">
+                <b>You are here</b><br>
+                ${userLocation.lat.toFixed(5)}, ${userLocation.lng.toFixed(5)}<br>
+                <button onclick="window.copyToClipboard('${userLocation.lat}, ${userLocation.lng}')" 
+                    style="margin-top:5px; padding:2px 8px; font-size:0.8rem; cursor:pointer; border:1px solid #ccc; background:#f0f0f0; border-radius:4px;">
+                    <i class="fas fa-copy"></i> Copy
+                </button>
+            </div>`;
+            
+        window.userMarker = L.marker([userLocation.lat, userLocation.lng]).addTo(map).bindPopup(content).openPopup();
         map.setView([userLocation.lat, userLocation.lng], 16);
         if(cb) cb();
     });
 }
-function resetMapView() {
-    renderInitialBest(); // Req 2: Reset to hidden map, top 4 list
-    map.setView([DEFAULT_CENTER.lat, DEFAULT_CENTER.lng], 16);
-}
+function resetMapView() { renderInitialBest(); map.setView([DEFAULT_CENTER.lat, DEFAULT_CENTER.lng], 16); }

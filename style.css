@@ -77,51 +77,10 @@ body {
     margin-right: 5px;
 }
 
-/* Search Bar & Suggestions */
-.search-bar { position: relative; order: 1; display: flex; flex: 1; max-width: 500px; min-width: 250px; margin: 0 20px; }
+.search-bar { order: 1; display: flex; flex: 1; max-width: 500px; min-width: 250px; margin: 0 20px; }
 .search-bar input { flex: 1; padding: 0.75rem 1rem; border: none; border-radius: 25px 0 0 25px; font-size: 1rem; outline: none; }
 .search-bar button { padding: 0.75rem 1.5rem; border: none; border-radius: 0 25px 25px 0; background: #4a5568; color: white; cursor: pointer; transition: background 0.3s; }
 .search-bar button:hover { background: #2d3748; }
-
-.search-suggestions {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    width: 100%;
-    background: white;
-    border-radius: 0 0 15px 15px;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.15);
-    z-index: 1200;
-    display: none;
-    max-height: 400px;
-    overflow-y: auto;
-    border: 1px solid #e2e8f0;
-}
-
-.suggestion-header {
-    padding: 8px 15px;
-    font-size: 0.75rem;
-    font-weight: 700;
-    color: #718096;
-    background-color: #f7fafc;
-    border-bottom: 1px solid #edf2f7;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.search-suggestion-item {
-    padding: 10px 15px;
-    cursor: pointer;
-    border-bottom: 1px solid #f0f0f0;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-.search-suggestion-item:last-child { border-bottom: none; }
-.search-suggestion-item:hover { background-color: #ebf4ff; }
-.suggestion-type { font-size: 0.75rem; color: #667eea; font-weight: bold; background: #edf2f7; padding: 2px 6px; border-radius: 4px; }
-.suggestion-text { font-weight: 500; color: #2d3748; }
-
 
 .user-actions { order: 3; }
 .user-actions .btn-primary { background: #48bb78; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 25px; cursor: pointer; font-weight: 600; transition: background 0.3s; white-space: nowrap; }
@@ -150,28 +109,20 @@ body {
 .btn-danger { padding: 0.75rem; background: #e53e3e; color: white; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.3s; }
 .btn-danger:hover { background: #c53030; }
 
-/* Tick Styles for Request Button */
-.tick-icon { margin-left: 5px; font-size: 1.1rem; }
-.tick-grey { color: #ccc; }
-.tick-blue { color: #00a8f3; } /* WhatsApp Blue */
-
-/* See More Button */
-.btn-see-more {
-    width: 100%;
-    padding: 10px;
-    background: white;
-    border: 1px solid #667eea;
-    color: #667eea;
-    border-radius: 8px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s;
-    margin-top: 10px;
-}
-.btn-see-more:hover {
-    background: #667eea;
-    color: white;
-}
+/* --- PROVIDER CARDS --- */
+.providers-list { margin-top: 2rem; }
+.provider-card { background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; cursor: pointer; transition: all 0.3s; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+.provider-card:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-color: #667eea; }
+.provider-card.active { border-color: #667eea; background: #f7fafc; }
+.provider-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem; }
+.provider-name { font-weight: 600; color: #2d3748; }
+.provider-service { background: #edf2f7; color: #4a5568; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.8rem; font-weight: 500; }
+.provider-rating { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
+.stars { color: #fbbf24; }
+.provider-address { color: #718096; font-size: 0.9rem; }
+.status-badge { font-size: 0.8rem; padding: 2px 6px; border-radius: 4px; font-weight: bold; margin-left: 10px; }
+.status-open { background: #c6f6d5; color: #22543d; }
+.status-closed { background: #fed7d7; color: #822727; }
 
 /* --- MAP AREA --- */
 .map-container { flex: 1; position: relative; }
@@ -247,9 +198,15 @@ body {
 .dest-popup-btn { background: #667eea; color: white; border: none; padding: 5px; border-radius: 4px; cursor: pointer; margin-top: 5px; font-weight: bold; }
 .dest-popup-btn:hover { background: #5a67d8; }
 
-/* Active Instruction Highlight */
-.leaflet-routing-alt tr:hover { background-color: #eee; cursor: pointer; }
-.leaflet-routing-alt tr.highlight-step { background-color: #ebf4ff !important; border-left: 4px solid #667eea; }
+/* --- ADMIN PANEL --- */
+.clickable-card { cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; position: relative; }
+.clickable-card:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); border-color: #667eea; }
+.card-hint { font-size: 0.75rem; color: #a0aec0; margin-top: 5px; }
+.admin-list-container { max-height: 250px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 6px; background: #f9f9f9; }
+.admin-list-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 15px; border-bottom: 1px solid #eee; background: white; }
+.admin-list-item:hover { background: #f0f4f8; }
+.btn-sm-danger { padding: 5px 10px; background: #e53e3e; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
+.btn-sm-danger:hover { background: #c53030; }
 
 /* --- CHATBOT --- */
 .chat-toggle-btn { position: fixed; bottom: 20px; right: 20px; width: 60px; height: 60px; background: #667eea; border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; font-size: 28px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); cursor: pointer; z-index: 3000; transition: transform 0.3s, background 0.3s; }
@@ -271,66 +228,141 @@ body {
 
 /* --- RESPONSIVE MEDIA QUERIES (MOBILE OPTIMIZATIONS) --- */
 
+/* Hide the mobile Add Shop button on desktop screens */
 @media (min-width: 769px) {
     #addProviderBtnMobile { display: none !important; }
 }
 
 @media (max-width: 768px) { 
-    .header { flex-direction: row; flex-wrap: wrap; padding: 6px 10px; text-align: left; gap: 8px; min-height: auto; align-items: flex-start; } 
-    .logo { margin-right: auto; gap: 6px; flex: 1 1 auto; }
+    /* 1. Header: Very Compact Row Layout */
+    .header { 
+        flex-direction: row; 
+        flex-wrap: wrap; 
+        padding: 6px 10px;
+        text-align: left; 
+        gap: 8px;
+        min-height: auto;
+        align-items: flex-start;
+    } 
+    
+    .logo { 
+        margin-right: auto; 
+        gap: 6px; 
+        flex: 1 1 auto;
+    }
+    
     .logo i { font-size: 1.4rem; color: white; }
+    
     .logo-text { display: flex; flex-direction: column; }
     .logo h1 { display: block; font-size: 1rem; line-height: 1.1; } 
     .subtitle { display: block; font-size: 0.7rem; line-height: 1.1; opacity: 0.9; }
+
     .auth-section { order: 2; width: auto; gap: 5px; font-size: 0.8rem; } 
     .auth-section button { padding: 0.3rem 0.6rem; font-size: 0.8rem; }
     
-    .search-bar { order: 3; width: 100%; margin: 2px 0 0 0; max-width: none; height: 38px; } 
+    /* Compact Search Bar */
+    .search-bar { 
+        order: 3; 
+        width: 100%; 
+        margin: 2px 0 0 0;
+        max-width: none; 
+        height: 38px;
+    } 
     .search-bar input { padding: 0.4rem 0.8rem; font-size: 0.9rem; }
     .search-bar button { padding: 0.4rem 1rem; }
-    .user-actions { display: none; } 
-    .main-content { display: block; height: auto; flex: 1; position: relative; } 
-    .map-container { width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; } 
-    
-    .sidebar { 
-        width: 100%; height: auto; max-height: 80vh; position: fixed; bottom: 0; left: 0; z-index: 4000;
-        background: white; border-radius: 20px 20px 0 0; box-shadow: 0 -5px 15px rgba(0,0,0,0.2);
-        transform: translateY(calc(100% - 50px)); transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
-        padding: 1rem 1.5rem 1.5rem 1.5rem;
-    }
-    .sidebar.expanded { transform: translateY(0); }
 
-    .mobile-sidebar-handle {
-        display: flex; justify-content: center; align-items: center; width: 100%; height: 40px; 
-        position: sticky; top: 0; z-index: 5000; cursor: pointer; background: #667eea; border-radius: 20px 20px 0 0;
-        margin-left: -1.5rem; width: calc(100% + 3rem); margin-top: -1rem; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    }
-    .mobile-sidebar-handle::after { display: none; }
-    .mobile-sidebar-handle i { color: white; font-size: 1.5rem; transition: transform 0.3s; }
-    .sidebar.expanded .mobile-sidebar-handle i { transform: rotate(180deg); }
+    .user-actions { display: none; } 
     
-    /* --- ROUTING WINDOW (MOBILE FIX - REQ 2) --- */
-    /* Ensure instructions are clearly visible, top-aligned, and scrollable */
-    .route-mode-controls { margin-right: 10px !important; margin-top: 10px !important; }
+    /* 2. Layout: Map takes more space */
+    .main-content { 
+        display: block;
+        height: auto; 
+        flex: 1; 
+        position: relative; 
+    } 
+
+    .map-container { 
+        width: 100%;
+        height: 100%; 
+        position: absolute;
+        top: 0; left: 0;
+        z-index: 1;
+    } 
+    
+    /* Sidebar Fixed at Bottom with clear Visibility */
+    .sidebar { 
+        width: 100%; 
+        height: auto; 
+        max-height: 80vh; 
+        position: fixed; 
+        bottom: 0; 
+        left: 0;
+        z-index: 4000;
+        background: white;
+        border-radius: 20px 20px 0 0;
+        box-shadow: 0 -5px 15px rgba(0,0,0,0.2);
+        
+        transform: translateY(calc(100% - 35px)); 
+        transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+        padding: 0 1.5rem 1.5rem 1.5rem;
+    }
+
+    .sidebar.expanded {
+        transform: translateY(0);
+    }
+
+    /* --- MOBILE SIDEBAR HANDLE (FIXED/STICKY) --- */
+    .mobile-sidebar-handle {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        width: 100%;
+        height: 40px; 
+        position: sticky; /* Keeps it at the top while scrolling */
+        top: 0; 
+        z-index: 5000;
+        cursor: pointer;
+        background: #667eea;
+        border-radius: 20px 20px 0 0;
+        margin-bottom: 5px;
+        margin-left: -1.5rem; 
+        width: calc(100% + 3rem); 
+        margin-top: -1.5rem; 
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    
+    .mobile-sidebar-handle::after { display: none; }
+    
+    .mobile-sidebar-handle i {
+        color: white; 
+        font-size: 1.5rem;
+        transition: transform 0.3s;
+    }
+    
+    .sidebar.expanded .mobile-sidebar-handle i {
+        transform: rotate(180deg);
+    }
+    
+    /* --- ROUTING WINDOW (VERTICAL RECTANGLE, RIGHT ALIGNED) --- */
+    /* UPDATED ACCORDING TO USER REQUIREMENTS */
+    .route-mode-controls { margin-right: 50px !important; margin-top: 5px !important; }
     
     .leaflet-routing-container { 
-        width: 90% !important; /* Wider on mobile */
-        max-width: none !important; 
-        max-height: 50vh !important; /* Max half screen */
-        font-size: 12px !important; /* Slightly bigger font */
+        width: auto !important; /* Allow growing up to max-width */
+        max-width: 650px !important; /* SPECIFIED BY USER */
+        max-height: 80vh !important;  /* Very Tall / Big */
+        font-size: 11px !important; 
         
-        top: 60px !important; /* Below header */
-        right: 5% !important; /* Center horizontally */
-        left: 5% !important;
-        bottom: auto !important;
+        /* Positioning */
+        top: 65px !important; 
+        right: 60px !important; 
+        left: auto !important; 
         
         z-index: 100000 !important;
         overflow-y: auto !important;
-        background: white !important;
-        border-radius: 8px !important;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.4) !important;
     }
 
+    /* Modal Adjustments */
     .modal-content { width: 95%; top: 5%; max-height: 85vh; }
     .small-modal { top: 10%; }
     .chat-window { width: 90%; right: 5%; bottom: 85px; } 

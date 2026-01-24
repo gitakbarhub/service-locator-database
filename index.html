@@ -43,7 +43,6 @@
                     <button id="providerPanelBtn" class="btn-warning" style="display:none;">My Requests <span id="reqBadge" class="badge">0</span></button>
                     
                     <button id="helpBtnUser" class="btn-secondary-light" title="Help">Help</button>
-                    
                     <button id="logoutBtn" class="btn-secondary-light" title="Exit / Logout">
                         <i class="fas fa-sign-out-alt"></i>
                     </button>
@@ -218,7 +217,7 @@
                 <div class="dashboard-stats">
                     <div class="stat-card clickable-card" id="statUsers"><h3>Total Users</h3><span id="adminTotalUsers">0</span><div class="card-hint">Click to View</div></div>
                     <div class="stat-card clickable-card" id="statShops"><h3>Total Shops</h3><span id="adminTotalShops">0</span><div class="card-hint">Click to View</div></div>
-                    </div>
+                </div>
                 <div id="adminListSection" style="display:none; margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px;">
                     <h3 id="adminListTitle" style="margin-bottom: 10px;">List</h3>
                     <div id="adminListContainer" class="admin-list-container"></div>
@@ -336,7 +335,7 @@
                         <i class="fas fa-directions"></i> Route (Me &rarr; Shop)
                     </button>
                     <button id="sendRequestBtn" class="btn-warning" style="flex:1;">
-                        <i class="fas fa-ticket-alt"></i> Send Service Request
+                        <i class="fas fa-ticket-alt"></i> Send Request
                     </button>
                 </div>
                 
@@ -357,6 +356,7 @@
                     </div>
                     <div id="loginToReviewMsg" style="margin-top:15px; color:#666; font-style: italic;">Please <a href="#" onclick="document.getElementById('loginModal').style.display='block'; document.getElementById('providerDetailsModal').style.display='none';">Login</a> to write reviews.</div>
                     <div class="reviews-list-container"><h4>Recent Reviews</h4><div id="reviewsList" class="reviews-list"></div></div>
+                    
                     <div id="ownerActions" style="margin-top: 2rem; border-top: 1px solid #eee; padding-top: 1rem; display:none; flex-direction: column; gap:10px;">
                         <button id="editProviderBtn" class="btn-secondary" style="width: 100%;"><i class="fas fa-edit"></i> Modify Shop</button>
                         <button id="deleteProviderBtn" class="btn-danger" style="width: 100%;"><i class="fas fa-trash"></i> Delete This Shop</button>

@@ -28,11 +28,20 @@
                 <div id="loggedInView" style="display:none;">
                     <span id="welcomeUser">Hi, User</span>
                     
+                    <div id="notificationWrapper" style="position:relative; display:none; margin-right:10px; cursor:pointer;">
+                        <i class="fas fa-bell" style="font-size:1.2rem; color:white;"></i>
+                        <span id="notifBadge" style="display:none; position:absolute; top:-5px; right:-5px; background:red; color:white; font-size:10px; padding:2px 5px; border-radius:50%;">0</span>
+                        <div id="notificationDropdown" class="notification-dropdown">
+                            <div style="padding:10px; border-bottom:1px solid #eee; font-weight:bold;">Service Requests</div>
+                            <div id="notifList"></div>
+                        </div>
+                    </div>
+
                     <button id="addProviderBtnMobile" class="btn-primary mobile-add-btn" style="display:none;">
                         <i class="fas fa-plus"></i> Add Shop
                     </button>
                     
-                    <button id="adminPanelBtn" class="btn-warning" style="display:none;">Admin</button>
+                    <button id="adminPanelBtn" class="btn-warning" style="display:none;">Admin Panel</button>
                     
                     <button id="logoutBtn" class="btn-secondary-light" title="Exit / Logout">
                         <i class="fas fa-sign-out-alt"></i>
@@ -40,9 +49,10 @@
                 </div>
             </div>
 
-            <div class="search-bar">
-                <input type="text" id="searchInput" placeholder="Search service (e.g. Carpenter)...">
+            <div class="search-bar" style="position:relative;">
+                <input type="text" id="searchInput" placeholder="Search service (e.g. Carpenter)..." autocomplete="off">
                 <button id="searchBtn"><i class="fas fa-search"></i></button>
+                <div id="searchSuggestions" class="search-suggestions"></div>
             </div>
             
             <div class="user-actions">
@@ -105,8 +115,9 @@
                 </div>
 
                 <div class="providers-list">
-                    <h3>Shops in Area</h3>
+                    <h3 id="listHeader">Top Rated Services</h3>
                     <div id="providersContainer"></div>
+                    <button id="seeMoreBtn" class="btn-secondary" style="display:none; margin-top:10px;">See More Shops...</button>
                 </div>
             </aside>
 
@@ -152,209 +163,64 @@
         </div>
         <div id="chatMessages" class="chat-messages"></div>
         <div class="chat-input-area">
-            <input type="text" id="chatInput" placeholder="Ask about buttons, services...">
+            <input type="text" id="chatInput" placeholder="Problem? e.g. 'pipe leaking'">
             <button id="sendChatBtn"><i class="fas fa-paper-plane"></i></button>
         </div>
     </div>
 
     <div id="loginModal" class="modal">
         <div class="modal-content small-modal">
-            <div class="modal-header draggable-header">
-                <h2>Login</h2>
-                <span class="close">&times;</span>
-            </div>
+            <div class="modal-header draggable-header"><h2>Login</h2><span class="close">&times;</span></div>
             <form id="loginForm">
-                <div class="form-group">
-                    <label>Username</label>
-                    <input type="text" id="loginUsername" required autocomplete="username">
-                </div>
-                <div class="form-group">
-                    <label>Password</label>
-                    <div class="password-wrapper">
-                        <input type="password" id="loginPassword" required autocomplete="current-password">
-                        <i class="fas fa-eye toggle-password" data-target="loginPassword"></i>
-                    </div>
-                </div>
-                <div style="padding: 0 1.5rem; margin-bottom: 10px; text-align: right;">
-                    <a href="#" id="forgotPasswordLink" style="font-size: 0.8rem; color: #667eea;">Forgot Password?</a>
-                </div>
-                <div class="form-actions">
-                    <button type="submit" class="btn-primary">Login</button>
-                </div>
+                <div class="form-group"><label>Username</label><input type="text" id="loginUsername" required autocomplete="username"></div>
+                <div class="form-group"><label>Password</label><div class="password-wrapper"><input type="password" id="loginPassword" required autocomplete="current-password"><i class="fas fa-eye toggle-password" data-target="loginPassword"></i></div></div>
+                <div class="form-actions"><button type="submit" class="btn-primary">Login</button></div>
             </form>
         </div>
     </div>
-
-    <div id="forgotPasswordModal" class="modal">
-        <div class="modal-content small-modal">
-            <div class="modal-header draggable-header">
-                <h2>Recover Password</h2>
-                <span class="close">&times;</span>
-            </div>
-            <form id="forgotPasswordForm">
-                <div class="form-group">
-                    <label>Username</label>
-                    <input type="text" id="recoverUsername" required>
-                </div>
-                <div class="form-group">
-                    <label>Security Question: Answer your selected question.</label>
-                    <input type="text" id="recoverAnswer" placeholder="Your answer" required>
-                </div>
-                <div class="form-actions">
-                    <button type="submit" class="btn-primary">Recover</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
+    
     <div id="registerModal" class="modal">
         <div class="modal-content small-modal">
-            <div class="modal-header draggable-header">
-                <h2>Register Account</h2>
-                <span class="close">&times;</span>
-            </div>
+            <div class="modal-header draggable-header"><h2>Register</h2><span class="close">&times;</span></div>
             <form id="registerForm">
-                <div class="form-group">
-                    <label>Username</label>
-                    <input type="text" id="regUsername" required autocomplete="username">
-                </div>
-                <div class="form-group">
-                    <label>Password</label>
-                    <div class="password-wrapper">
-                        <input type="password" id="regPassword" required autocomplete="new-password">
-                        <i class="fas fa-eye toggle-password" data-target="regPassword"></i>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>Security Question</label>
-                    <select id="regSecurityQuestion" required style="width:100%; padding:8px; border:1px solid #e2e8f0; border-radius:8px;">
-                        <option value="pet">What is your pet's name?</option>
-                        <option value="city">What city were you born in?</option>
-                        <option value="car">What was your first car?</option>
-                        <option value="school">What is your first school name?</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Answer</label>
-                    <input type="text" id="regSecurityAnswer" placeholder="Your answer..." required>
-                </div>
-                <div class="form-group">
-                    <label>Account Type</label>
-                    <select id="regRole">
-                        <option value="user">Regular User (Reviewer)</option>
-                        <option value="provider">Service Provider (Shop Owner)</option>
-                    </select>
-                </div>
-                <div class="form-actions">
-                    <button type="submit" class="btn-primary">Create Account</button>
-                </div>
+                <div class="form-group"><label>Username</label><input type="text" id="regUsername" required></div>
+                <div class="form-group"><label>Password</label><input type="password" id="regPassword" required></div>
+                <div class="form-group"><label>Role</label><select id="regRole"><option value="user">User</option><option value="provider">Service Provider</option></select></div>
+                <div class="form-group"><label>Security Q</label><select id="regSecurityQuestion"><option value="city">City?</option></select></div>
+                <div class="form-group"><label>Answer</label><input type="text" id="regSecurityAnswer" required></div>
+                <div class="form-actions"><button type="submit" class="btn-primary">Register</button></div>
             </form>
         </div>
     </div>
 
-    <div id="adminModal" class="modal">
-        <div class="modal-content">
+    <div id="requestModal" class="modal">
+        <div class="modal-content small-modal">
             <div class="modal-header draggable-header">
-                <h2>Admin Dashboard</h2>
+                <h2>Service Request Ticket</h2>
                 <span class="close">&times;</span>
             </div>
-            <div style="padding: 20px;">
-                <div class="dashboard-stats">
-                    <div class="stat-card clickable-card" id="statUsers">
-                        <h3>Total Users</h3>
-                        <span id="adminTotalUsers">0</span>
-                        <div class="card-hint">(Click to manage)</div>
-                    </div>
-                    <div class="stat-card clickable-card" id="statShops">
-                        <h3>Total Shops</h3>
-                        <span id="adminTotalShops">0</span>
-                        <div class="card-hint">(Click to manage)</div>
-                    </div>
-                </div>
-
-                <div id="adminListSection" style="display:none; margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px;">
-                    <h3 id="adminListTitle" style="margin-bottom: 10px;">List</h3>
-                    <div id="adminListContainer" class="admin-list-container"></div>
-                </div>
-
-                <h3 style="margin-top: 20px;">System Actions</h3>
-                <button id="resetSystemBtn" class="btn-danger">Reset All Data</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="addProviderModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header draggable-header">
-                <h2 id="modalTitleProvider">Add Service Provider</h2>
-                <span class="close">&times;</span>
-            </div>
-            <form id="providerForm">
-                <input type="hidden" id="editProviderId"> <div class="form-group">
-                    <label for="providerName">Shop Name</label>
-                    <input type="text" id="providerName" required>
+            <form id="requestForm">
+                <input type="hidden" id="reqProviderId">
+                <div class="form-group">
+                    <label>Your Name</label>
+                    <input type="text" id="reqName" required>
                 </div>
                 <div class="form-group">
-                    <label for="providerService">Service Type</label>
-                    <select id="providerService" required>
-                        <option value="electrician">Electrician</option>
-                        <option value="plumber">Plumber</option>
-                        <option value="mechanic">Mechanic</option>
-                        <option value="carwash">Car/Bike Wash</option>
-                        <option value="carpenter">Carpenter</option>
-                        <option value="painter">Painter</option>
-                        <option value="ac_repair">AC Repair</option>
-                        <option value="welder">Welder</option>
-                    </select>
+                    <label>Phone No</label>
+                    <input type="tel" id="reqPhone" required>
                 </div>
-                
-                <div style="display: flex; gap: 10px; padding: 0 1.5rem 1.5rem 1.5rem;">
-                    <div style="flex:1;">
-                        <label style="font-size:0.9rem; font-weight:600;">Open Time</label>
-                        <input type="time" id="providerOpenTime" required style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px;">
+                <div class="form-group">
+                    <label>Address (Optional)</label>
+                    <input type="text" id="reqAddress" placeholder="House #, Street...">
+                </div>
+                <div class="form-group">
+                    <label>Location</label>
+                    <div style="font-size:0.8rem; color:green; margin-bottom:5px;">
+                        <i class="fas fa-check-circle"></i> Will send your current map location.
                     </div>
-                    <div style="flex:1;">
-                        <label style="font-size:0.9rem; font-weight:600;">Close Time</label>
-                        <input type="time" id="providerCloseTime" required style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px;">
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label>Location (Auto-fill or Manual)</label>
-                    <div style="display: flex; gap: 10px; margin-bottom: 5px;">
-                        <input type="number" id="newLat" step="any" placeholder="Latitude" style="flex:1; padding: 0.75rem; border:1px solid #e2e8f0; border-radius:8px;">
-                        <input type="number" id="newLng" step="any" placeholder="Longitude" style="flex:1; padding: 0.75rem; border:1px solid #e2e8f0; border-radius:8px;">
-                    </div>
-                    <div style="display: flex; gap: 10px; align-items: center;">
-                        <button type="button" id="pickLocationBtn" class="btn-secondary" style="flex:1;">
-                            <i class="fas fa-map-marker-alt"></i> Pick on Map
-                        </button>
-                        <span id="locationStatus" style="font-size: 0.9rem; color: #666; display:none;">Not set</span>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label for="providerPhone">Contact No</label>
-                    <input type="tel" id="providerPhone" required>
-                </div>
-                <div class="form-group">
-                    <label for="providerAddress">Address / Shop No</label>
-                    <input type="text" id="providerAddress" required>
-                </div>
-                
-                <div class="form-group">
-                    <label for="providerImage">Shop Picture (Upload)</label>
-                    <input type="file" id="providerImage" accept="image/*">
-                    <small style="color:#666;">Max size 500kb recommended</small>
-                </div>
-
-                <div class="form-group">
-                    <label for="providerDescription">Description</label>
-                    <textarea id="providerDescription" rows="3"></textarea>
                 </div>
                 <div class="form-actions">
-                    <button type="button" class="btn-secondary" id="cancelAdd">Cancel</button>
-                    <button type="submit" class="btn-primary" id="saveProviderBtn">Save Shop</button>
+                    <button type="submit" class="btn-primary">Send Request</button>
                 </div>
             </form>
         </div>
@@ -388,53 +254,79 @@
                     <span id="detailAddress"></span>
                 </div>
                 
-                <div style="display:flex; gap:10px; margin: 0 1.5rem 1rem 1.5rem;">
-                    <button id="getDirectionsBtn" class="btn-primary" style="flex:1;">
+                <div style="display:flex; gap:10px; margin: 0 1.5rem 1rem 1.5rem; flex-direction: column;">
+                    <button id="getDirectionsBtn" class="btn-secondary" style="width:100%;">
                         <i class="fas fa-directions"></i> Route (Me &rarr; Shop)
                     </button>
-                    <button id="reverseRouteBtn" class="btn-warning" style="flex:1;">
-                        <i class="fas fa-shuttle-van"></i> Route (Shop &rarr; Me)
+                    
+                    <button id="sendRequestBtn" class="btn-primary" style="width:100%; padding: 12px; font-size: 1.1rem; background: #38a169;">
+                        <i class="fas fa-paper-plane"></i> Send Service Request
                     </button>
+                    
+                    <div id="requestStatusDisplay" style="display:none; text-align:center; padding:10px; background:#f0fff4; border:1px solid #c6f6d5; border-radius:8px;">
+                        <strong>Request Status:</strong> 
+                        <span id="reqStatusText">Sent</span> 
+                        <span id="reqStatusIcon">
+                            <i class="fas fa-check" style="color:gray;"></i>
+                        </span>
+                    </div>
                 </div>
                 
                 <div class="rating-section">
                     <div class="current-rating">
-                        <span>Average Rating: </span>
+                        <span>Rating: </span>
                         <div class="stars" id="detailRating"></div>
-                        <span id="detailRatingValue"></span>
                     </div>
-                    
                     <div id="reviewSection" class="add-rating" style="display:none;">
-                        <h4>Write a Review:</h4>
-                        <div class="rating-stars">
-                            <span class="star" data-rating="1">★</span>
-                            <span class="star" data-rating="2">★</span>
-                            <span class="star" data-rating="3">★</span>
-                            <span class="star" data-rating="4">★</span>
-                            <span class="star" data-rating="5">★</span>
                         </div>
-                        <textarea id="reviewText" placeholder="Share your experience..." rows="2" style="width:100%; margin-top:10px; padding:8px; border-radius:4px; border:1px solid #ddd;"></textarea>
-                        <button id="submitReviewBtn" class="btn-primary" style="margin-top:10px; width:auto; padding: 5px 15px;">Submit Review</button>
-                    </div>
-                    <div id="loginToReviewMsg" style="margin-top:15px; color:#666; font-style: italic;">
-                        Please <a href="#" onclick="document.getElementById('loginModal').style.display='block'; document.getElementById('providerDetailsModal').style.display='none';">Login</a> to write reviews.
-                    </div>
-
                     <div class="reviews-list-container">
                         <h4>Recent Reviews</h4>
                         <div id="reviewsList" class="reviews-list"></div>
                     </div>
-
-                    <div id="ownerActions" style="margin-top: 2rem; border-top: 1px solid #eee; padding-top: 1rem; display:none; flex-direction: column; gap:10px;">
-                        <button id="editProviderBtn" class="btn-secondary" style="width: 100%;">
-                            <i class="fas fa-edit"></i> Modify Shop
-                        </button>
-                        <button id="deleteProviderBtn" class="btn-danger" style="width: 100%;">
-                            <i class="fas fa-trash"></i> Delete This Shop
-                        </button>
-                    </div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <div id="adminModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header draggable-header">
+                <h2>Admin Panel</h2> <span class="close">&times;</span>
+            </div>
+            <div style="padding: 20px;">
+                <div class="dashboard-stats">
+                    <div class="stat-card" id="statShops"><h3>Total Shops</h3><span id="adminTotalShops">0</span></div>
+                </div>
+                <div id="adminListContainer" class="admin-list-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="addProviderModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header draggable-header"><h2 id="modalTitleProvider">Add Shop</h2><span class="close">&times;</span></div>
+            <form id="providerForm">
+                <input type="hidden" id="editProviderId">
+                <div class="form-group"><label>Shop Name</label><input type="text" id="providerName" required></div>
+                <div class="form-group"><label>Service</label>
+                    <select id="providerService" required>
+                        <option value="electrician">Electrician</option>
+                        <option value="plumber">Plumber</option>
+                        <option value="mechanic">Mechanic</option>
+                        <option value="carwash">Car/Bike Wash</option>
+                        <option value="carpenter">Carpenter</option>
+                        <option value="painter">Painter</option>
+                        <option value="ac_repair">AC Repair</option>
+                        <option value="welder">Welder</option>
+                    </select>
+                </div>
+                <div class="form-group"><label>Times</label><input type="time" id="providerOpenTime"> <input type="time" id="providerCloseTime"></div>
+                <div class="form-group"><label>Location</label><input type="number" id="newLat" step="any" placeholder="Lat"><input type="number" id="newLng" step="any" placeholder="Lng"><button type="button" id="pickLocationBtn">Pick on Map</button><span id="locationStatus"></span></div>
+                <div class="form-group"><label>Phone</label><input type="tel" id="providerPhone" required></div>
+                <div class="form-group"><label>Address</label><input type="text" id="providerAddress" required></div>
+                <div class="form-group"><label>Image</label><input type="file" id="providerImage"></div>
+                <div class="form-actions"><button type="button" class="btn-secondary" id="cancelAdd">Cancel</button><button type="submit" class="btn-primary" id="saveProviderBtn">Save</button></div>
+            </form>
         </div>
     </div>
 

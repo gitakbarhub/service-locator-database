@@ -21,13 +21,21 @@
             </div>
             
             <div class="auth-section">
+                <div id="notificationArea" style="display:none; position:relative; margin-right:10px; cursor:pointer;">
+                    <i class="fas fa-bell" style="font-size:1.2rem;"></i>
+                    <span id="notifBadge" class="notif-badge" style="display:none;">0</span>
+                </div>
+
                 <div id="loggedOutView">
+                    <button id="helpGuestBtn" class="btn-secondary-light"><i class="fas fa-question-circle"></i> Help</button>
                     <button id="loginBtnNav" class="btn-secondary-light">Login</button>
                     <button id="registerBtnNav" class="btn-primary">Register</button>
                 </div>
                 <div id="loggedInView" style="display:none;">
                     <span id="welcomeUser">Hi, User</span>
                     
+                    <button id="helpUserBtn" class="btn-secondary-light" style="margin-right:5px;"><i class="fas fa-question-circle"></i></button>
+
                     <button id="addProviderBtnMobile" class="btn-primary mobile-add-btn" style="display:none;">
                         <i class="fas fa-plus"></i> Add Shop
                     </button>
@@ -254,6 +262,77 @@
         </div>
     </div>
 
+    <div id="helpModal" class="modal">
+        <div class="modal-content small-modal">
+            <div class="modal-header draggable-header">
+                <h2>Help Center</h2>
+                <span class="close">&times;</span>
+            </div>
+            <form id="helpForm">
+                <div class="form-group">
+                    <label>Name</label>
+                    <input type="text" id="helpName" required>
+                </div>
+                <div class="form-group">
+                    <label>Role</label>
+                    <select id="helpRole" disabled style="background:#f0f0f0;">
+                        <option value="new">New/Unregistered</option>
+                        <option value="user">User</option>
+                        <option value="provider">Service Provider</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Problem Description</label>
+                    <textarea id="helpProblem" rows="4" required placeholder="Describe your issue..."></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">Send to Admin</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="notificationsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header draggable-header">
+                <h2>Notifications</h2>
+                <span class="close">&times;</span>
+            </div>
+            <div id="notificationList" class="reviews-list" style="padding:20px; max-height:400px; overflow-y:auto;">
+                </div>
+        </div>
+    </div>
+
+    <div id="serviceRequestModal" class="modal">
+        <div class="modal-content small-modal">
+            <div class="modal-header draggable-header">
+                <h2>Service Request</h2>
+                <span class="close">&times;</span>
+            </div>
+            <form id="serviceRequestForm">
+                <input type="hidden" id="reqProviderId">
+                <div class="form-group">
+                    <label>Your Name</label>
+                    <input type="text" id="reqName" required>
+                </div>
+                <div class="form-group">
+                    <label>Phone Number</label>
+                    <input type="tel" id="reqPhone" required>
+                </div>
+                <div class="form-group">
+                    <label>Address (Optional)</label>
+                    <input type="text" id="reqAddress" placeholder="House no, Street...">
+                </div>
+                <div style="padding:0 1.5rem; font-size:0.85rem; color:#666; margin-bottom:10px;">
+                    <i class="fas fa-map-marker-alt"></i> We will send your current GPS location to the provider.
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">Send Request</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div id="adminModal" class="modal">
         <div class="modal-content">
             <div class="modal-header draggable-header">
@@ -277,6 +356,11 @@
                 <div id="adminListSection" style="display:none; margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px;">
                     <h3 id="adminListTitle" style="margin-bottom: 10px;">List</h3>
                     <div id="adminListContainer" class="admin-list-container"></div>
+                </div>
+                
+                <div style="margin-top:20px; border-top:1px solid #eee; padding-top:10px;">
+                    <h3>Help Desk Tickets</h3>
+                    <div id="adminHelpContainer" class="admin-list-container" style="height:150px;"></div>
                 </div>
 
                 <h3 style="margin-top: 20px;">System Actions</h3>
@@ -394,8 +478,8 @@
                     <button id="getDirectionsBtn" class="btn-primary" style="flex:1;">
                         <i class="fas fa-directions"></i> Route (Me &rarr; Shop)
                     </button>
-                    <button id="reverseRouteBtn" class="btn-warning" style="flex:1;">
-                        <i class="fas fa-shuttle-van"></i> Route (Shop &rarr; Me)
+                    <button id="requestServiceBtn" class="btn-warning" style="flex:1;">
+                        <i class="fas fa-ticket-alt"></i> Send Request
                     </button>
                 </div>
                 
@@ -419,7 +503,7 @@
                         <button id="submitReviewBtn" class="btn-primary" style="margin-top:10px; width:auto; padding: 5px 15px;">Submit Review</button>
                     </div>
                     <div id="loginToReviewMsg" style="margin-top:15px; color:#666; font-style: italic;">
-                        Please <a href="#" onclick="document.getElementById('loginModal').style.display='block'; document.getElementById('providerDetailsModal').style.display='none';">Login</a> to write reviews.
+                        Please <a href="#" onclick="document.getElementById('loginModal').style.display='block'; document.getElementById('providerDetailsModal').style.display='none';">Login</a> to write reviews or request service.
                     </div>
 
                     <div class="reviews-list-container">

@@ -77,10 +77,47 @@ body {
     margin-right: 5px;
 }
 
-.search-bar { order: 1; display: flex; flex: 1; max-width: 500px; min-width: 250px; margin: 0 20px; }
+/* Search Bar & Dropdown */
+.search-bar { order: 1; display: flex; flex: 1; max-width: 500px; min-width: 250px; margin: 0 20px; position: relative; }
 .search-bar input { flex: 1; padding: 0.75rem 1rem; border: none; border-radius: 25px 0 0 25px; font-size: 1rem; outline: none; }
 .search-bar button { padding: 0.75rem 1.5rem; border: none; border-radius: 0 25px 25px 0; background: #4a5568; color: white; cursor: pointer; transition: background 0.3s; }
 .search-bar button:hover { background: #2d3748; }
+
+.search-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border-radius: 0 0 15px 15px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    max-height: 400px;
+    overflow-y: auto;
+    z-index: 1200;
+    display: none;
+}
+.search-results.active { display: block; }
+.search-category-header {
+    padding: 8px 15px;
+    background: #f7fafc;
+    font-weight: bold;
+    color: #4a5568;
+    font-size: 0.85rem;
+    border-bottom: 1px solid #e2e8f0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.search-item {
+    padding: 10px 15px;
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+    font-size: 0.95rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.search-item:hover { background-color: #ebf4ff; color: #2b6cb0; }
+.search-item strong { color: #2d3748; }
 
 .user-actions { order: 3; }
 .user-actions .btn-primary { background: #48bb78; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 25px; cursor: pointer; font-weight: 600; transition: background 0.3s; white-space: nowrap; }
@@ -198,6 +235,10 @@ body {
 .dest-popup-btn { background: #667eea; color: white; border: none; padding: 5px; border-radius: 4px; cursor: pointer; margin-top: 5px; font-weight: bold; }
 .dest-popup-btn:hover { background: #5a67d8; }
 
+/* Highlight the current instruction */
+.instruction-active { background-color: #667eea !important; color: white !important; font-weight: bold; border-left: 4px solid #2b6cb0; }
+.leaflet-routing-alt tr:hover { background-color: #f0f4f8; }
+
 /* --- ADMIN PANEL --- */
 .clickable-card { cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; position: relative; }
 .clickable-card:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); border-color: #667eea; }
@@ -304,8 +345,6 @@ body {
         
         transform: translateY(calc(100% - 35px)); 
         transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
-        
-        /* REQ 1: Added top padding so header isn't hidden by the handle */
         padding: 50px 1.5rem 1.5rem 1.5rem;
     }
 
@@ -327,7 +366,6 @@ body {
         cursor: pointer;
         background: #667eea;
         border-radius: 20px 20px 0 0;
-        /* Removed negative margins to clean up positioning */
         margin: 0;
         width: 100%; 
         box-shadow: 0 2px 5px rgba(0,0,0,0.1);
@@ -345,21 +383,25 @@ body {
         transform: rotate(180deg);
     }
     
+    /* Move Chatbot Up on Mobile so it doesn't overlap sidebar handle */
+    .chat-toggle-btn {
+        bottom: 90px !important;
+    }
+    .chat-window {
+        bottom: 160px !important;
+    }
+    
     /* --- ROUTING WINDOW (VERTICAL RECTANGLE, RIGHT ALIGNED) --- */
-    /* UPDATED ACCORDING TO USER REQUIREMENTS */
     .route-mode-controls { margin-right: 50px !important; margin-top: 5px !important; }
     
     .leaflet-routing-container { 
-        width: auto !important; /* Allow growing up to max-width */
-        max-width: 650px !important; /* SPECIFIED BY USER */
-        max-height: 80vh !important;  /* Very Tall / Big */
+        width: auto !important; 
+        max-width: 650px !important; 
+        max-height: 80vh !important;  
         font-size: 11px !important; 
-        
-        /* Positioning */
         top: 65px !important; 
         right: 60px !important; 
         left: auto !important; 
-        
         z-index: 100000 !important;
         overflow-y: auto !important;
     }
@@ -367,7 +409,6 @@ body {
     /* Modal Adjustments */
     .modal-content { width: 95%; top: 5%; max-height: 85vh; }
     .small-modal { top: 10%; }
-    .chat-window { width: 90%; right: 5%; bottom: 85px; } 
     
     input, select, button { min-height: 40px; font-size: 16px; }
 }

@@ -41,7 +41,8 @@
             </div>
 
             <div class="search-bar">
-                <input type="text" id="searchInput" placeholder="Search service (e.g. Carpenter)...">
+                <input type="text" id="searchInput" placeholder="Search service (e.g. Carpenter)..." autocomplete="off">
+                <div id="searchResults" class="search-results"></div>
                 <button id="searchBtn"><i class="fas fa-search"></i></button>
             </div>
             
@@ -107,6 +108,7 @@
                 <div class="providers-list">
                     <h3>Shops in Area</h3>
                     <div id="providersContainer"></div>
+                    <button id="seeMoreBtn" class="btn-secondary" style="display:none; margin-top:10px;">See More</button>
                 </div>
             </aside>
 

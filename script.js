@@ -14,8 +14,7 @@ let routingControl = null;
 let narratorEnabled = false;
 let liveTrackingId = null; 
 
-// REQ 7: Default changed to 'cycling' (Bike)
-let currentRouteProfile = 'cycling'; 
+let currentRouteProfile = 'cycling'; // Default Bike
 
 // --- API & GEOSERVER VARIABLES ---
 let punjabLayer = null;
@@ -46,12 +45,38 @@ async function loadData() {
         if(Array.isArray(data)) {
             providers = data.map(p => ({...p, lat: parseFloat(p.lat), lng: parseFloat(p.lng)}));
         }
-        // REQ 4: Removed initial applyFilters() call.
-        // We do NOT show shops on load. Only on search/filter.
-        // applyFilters(); 
+        // Initial Display: Show Best of Each Category
+        renderInitialFeaturedShops();
     } catch (error) {
         console.error("Error loading cloud data:", error);
     }
+}
+
+// Function to Show 1 Best Shop from each Category initially
+function renderInitialFeaturedShops() {
+    const categories = [...new Set(providers.map(p => p.service))];
+    const featured = [];
+    
+    categories.forEach(cat => {
+        // Find best rated in this category
+        const inCat = providers.filter(p => p.service === cat);
+        // Sort by Rating Desc, then Reviews Desc
+        inCat.sort((a, b) => b.rating - a.rating || b.reviews - a.reviews);
+        if(inCat.length > 0) featured.push(inCat[0]);
+    });
+    
+    // Sort featured list by rating
+    featured.sort((a, b) => b.rating - a.rating);
+    
+    // Limit to 4 initially (as per user example "example show 4 shop")
+    // If fewer than 4 categories exist, it shows all bests.
+    const initialList = featured.slice(0, 4);
+    
+    renderProvidersList(initialList, true); // true = show See More button if more exist
+}
+
+function renderAllShops() {
+    renderProvidersList(providers, false);
 }
 
 async function login(username, password) {
@@ -108,7 +133,6 @@ function initializeMobileSidebar() {
     const handle = document.createElement('div');
     handle.className = 'mobile-sidebar-handle';
     handle.innerHTML = '<i class="fas fa-chevron-up"></i>';
-    // Append inside sidebar but structure allows scrolling now due to CSS
     sidebar.insertBefore(handle, sidebar.firstChild);
 
     handle.addEventListener('click', () => {
@@ -246,12 +270,23 @@ function initializeMap() {
 }
 
 function initializeEventListeners() {
-    document.getElementById('searchBtn').addEventListener('click', performSearch);
-    document.getElementById('searchInput').addEventListener('keypress', function(e) { if (e.key === 'Enter') performSearch(); });
+    // REQ 4: Improved Search Logic (Input event for dropdown)
+    document.getElementById('searchInput').addEventListener('input', handleSearchInput);
+    document.getElementById('searchBtn').addEventListener('click', function() {
+        // Fallback or explicit trigger
+        handleSearchInput({ target: document.getElementById('searchInput') });
+    });
     
-    // REQ 6: Applying logic similar to Req 5 for Filter buttons
+    // Hide dropdown on click outside
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.search-bar')) {
+            document.getElementById('searchResults').classList.remove('active');
+        }
+    });
+
     document.getElementById('applyFilters').addEventListener('click', applyFilters);
     document.getElementById('searchRadius').addEventListener('change', applyFilters);
+    document.getElementById('seeMoreBtn').addEventListener('click', renderAllShops);
     
     document.getElementById('locateMe').addEventListener('click', () => locateUser());
     document.getElementById('resetMapBtn').addEventListener('click', resetMapView);
@@ -350,6 +385,92 @@ function initializeEventListeners() {
     });
 }
 
+// REQ 4: SEARCH DROPDOWN LOGIC
+function handleSearchInput(e) {
+    const val = e.target.value.toLowerCase().trim();
+    const resultsDiv = document.getElementById('searchResults');
+    resultsDiv.innerHTML = '';
+    
+    if (val.length === 0) {
+        resultsDiv.classList.remove('active');
+        return;
+    }
+
+    // 1. Filter Categories (Main Category)
+    const allServices = [
+        { id: 'electrician', label: 'Electrician' },
+        { id: 'plumber', label: 'Plumber' },
+        { id: 'mechanic', label: 'Mechanic' },
+        { id: 'carwash', label: 'Car/Bike Wash' },
+        { id: 'carpenter', label: 'Carpenter' },
+        { id: 'painter', label: 'Painter' },
+        { id: 'ac_repair', label: 'AC Repair' },
+        { id: 'welder', label: 'Welder' }
+    ];
+
+    const matchedServices = allServices.filter(s => s.label.toLowerCase().startsWith(val));
+
+    if (matchedServices.length > 0) {
+        const header = document.createElement('div');
+        header.className = 'search-category-header';
+        header.textContent = 'Main Category';
+        resultsDiv.appendChild(header);
+
+        matchedServices.forEach(s => {
+            const item = document.createElement('div');
+            item.className = 'search-item';
+            item.textContent = s.label;
+            item.onclick = () => {
+                document.getElementById('serviceType').value = s.id;
+                document.getElementById('searchInput').value = s.label;
+                resultsDiv.classList.remove('active');
+                applyFilters(); // Trigger filter map to this service
+            };
+            resultsDiv.appendChild(item);
+        });
+    }
+
+    // 2. Filter Specific Shops (Available ...)
+    // Show headers for each matched category to list available shops under them
+    // If input is "c", matchedServices are Carpenter and Car Wash.
+    // We should list available Carpenter shops and Available Car Wash shops.
+    
+    matchedServices.forEach(service => {
+        const serviceShops = providers.filter(p => p.service === service.id);
+        if (serviceShops.length > 0) {
+            const shopHeader = document.createElement('div');
+            shopHeader.className = 'search-category-header';
+            shopHeader.textContent = `Available ${service.label}`;
+            resultsDiv.appendChild(shopHeader);
+
+            serviceShops.forEach(shop => {
+                const sItem = document.createElement('div');
+                sItem.className = 'search-item';
+                sItem.innerHTML = `<span>${shop.name}</span><small style="color:#718096">${shop.address}</small>`;
+                sItem.onclick = () => {
+                    document.getElementById('searchInput').value = shop.name;
+                    resultsDiv.classList.remove('active');
+                    filterToSingleShop(shop.id);
+                    showProviderOnMap(shop.id);
+                    highlightProviderCard(shop.id);
+                };
+                resultsDiv.appendChild(sItem);
+            });
+        }
+    });
+
+    // Also match by Name directly if not covered by category prefix? 
+    // User logic implies strict category matching first, but "See letter" logic implies prefix.
+    // The requirement says: "when i write c so carpenter and car/bike wash... in available car/bike wash and carpenter show all carpenter..."
+    // The above loop covers this exactly.
+
+    if (resultsDiv.children.length > 0) {
+        resultsDiv.classList.add('active');
+    } else {
+        resultsDiv.classList.remove('active');
+    }
+}
+
 function openAdminPanel() {
     document.getElementById('adminTotalUsers').textContent = "Click to View";
     document.getElementById('adminTotalShops').textContent = providers.length;
@@ -440,14 +561,12 @@ function setRouteProfile(profile) {
     document.getElementById(`mode-${profile}`).classList.add('active');
     
     if (routingControl) {
-        // Update router profile on the fly
         const router = L.Routing.osrmv1({
             serviceUrl: 'https://router.project-osrm.org/route/v1',
             profile: (profile === 'cycling') ? 'bike' : profile // OSRM uses 'bike' for cycling
         });
         routingControl.getRouter().options.profile = (profile === 'cycling') ? 'bike' : profile;
         
-        // Re-route with new profile
         const waypoints = routingControl.getWaypoints();
         routingControl.setWaypoints(waypoints);
     }
@@ -541,8 +660,6 @@ function executeRouting(providerId, reverse) {
                 div.style.borderRadius = '5px';
                 div.style.boxShadow = '0 2px 6px rgba(0,0,0,0.3)';
                 
-                // REQ 7: Changed 'Cycling' to 'Bike' and used motorcycle icon.
-                // REQ 7: Set Bike (cycling) as default active class.
                 div.innerHTML = `
                     <button id="mode-walking" class="route-mode-btn" onclick="setRouteProfile('walking')" title="Walking"><i class="fas fa-walking"></i></button>
                     <button id="mode-cycling" class="route-mode-btn active" onclick="setRouteProfile('cycling')" title="Bike"><i class="fas fa-motorcycle"></i></button>
@@ -568,8 +685,7 @@ function executeRouting(providerId, reverse) {
         routeWhileDragging: true, 
         router: L.Routing.osrmv1({
             serviceUrl: 'https://router.project-osrm.org/route/v1',
-            // REQ 7: Default profile Bike
-            profile: 'bike' 
+            profile: (currentRouteProfile === 'cycling') ? 'bike' : currentRouteProfile
         }),
         lineOptions: { styles: [{color: '#667eea', opacity: 1, weight: 5}] },
         createMarker: function(i, wp, nWps) {
@@ -642,18 +758,12 @@ function executeRouting(providerId, reverse) {
         const summary = routes[0].summary;
         const totalDistKm = (summary.totalDistance / 1000).toFixed(1);
         
-        // REQ 7: Time calculations
+        // REQ 1: Use summary.totalTime which respects vehicle speed from profile
         let timeMins = Math.round(summary.totalTime / 60);
         let modeText = "Bike";
 
-        if (currentRouteProfile === 'walking') {
-            // OSRM usually handles time correctly for profile, but just in case of manual override needs:
-            modeText = "Walking";
-        } else if (currentRouteProfile === 'cycling') {
-            modeText = "Bike";
-        } else if (currentRouteProfile === 'driving') {
-             modeText = "Car";
-        }
+        if (currentRouteProfile === 'walking') modeText = "Walking";
+        else if (currentRouteProfile === 'driving') modeText = "Car";
 
         let msg = `${modeText} route. Distance ${totalDistKm} km. Time approx ${timeMins} minutes.`;
         if(reverse) msg += " Drag the 'Me' icon to adjust destination.";
@@ -670,25 +780,64 @@ function executeRouting(providerId, reverse) {
         }, 500);
     });
     
-    // REQ 7: Live tracking update
+    // REQ 1: Live Instruction Highlighting & Tracking
     if (!reverse) {
         liveTrackingId = navigator.geolocation.watchPosition(
             function(pos) {
                 const newLat = pos.coords.latitude;
                 const newLng = pos.coords.longitude;
-                const currentLatLng = L.latLng(userLocation.lat, userLocation.lng);
                 const newLatLng = L.latLng(newLat, newLng);
-                
-                if (currentLatLng.distanceTo(newLatLng) > 20) {
-                    userLocation = { lat: newLat, lng: newLng };
-                    const waypoints = routingControl.getWaypoints();
+                userLocation = { lat: newLat, lng: newLng };
+
+                // Update Marker
+                const waypoints = routingControl.getWaypoints();
+                if (waypoints[0].latLng.distanceTo(newLatLng) > 10) {
                     waypoints[0].latLng = newLatLng; 
                     routingControl.setWaypoints(waypoints);
-                    console.log("Route updated live.");
+                }
+
+                // Highlight Current Instruction
+                if (routingControl._routes && routingControl._routes.length > 0) {
+                    const route = routingControl._routes[0];
+                    const coords = route.coordinates;
+                    let closestDist = Infinity;
+                    let closestIndex = 0;
+
+                    // Find closest coordinate in route path
+                    for (let i = 0; i < coords.length; i++) {
+                        const dist = newLatLng.distanceTo(L.latLng(coords[i]));
+                        if (dist < closestDist) {
+                            closestDist = dist;
+                            closestIndex = i;
+                        }
+                    }
+
+                    // Find matching instruction
+                    const instructions = route.instructions;
+                    let activeInstructionIdx = -1;
+                    
+                    for (let i = 0; i < instructions.length; i++) {
+                        // Instruction covers range from its index to next instruction index
+                        const start = instructions[i].index;
+                        const end = (i < instructions.length - 1) ? instructions[i+1].index : coords.length;
+                        
+                        if (closestIndex >= start && closestIndex < end) {
+                            activeInstructionIdx = i;
+                            break;
+                        }
+                    }
+
+                    // Apply Highlight Class to DOM
+                    const rows = document.querySelectorAll('.leaflet-routing-alt tr');
+                    rows.forEach(r => r.classList.remove('instruction-active'));
+                    if (activeInstructionIdx !== -1 && rows[activeInstructionIdx]) {
+                        rows[activeInstructionIdx].classList.add('instruction-active');
+                        rows[activeInstructionIdx].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
                 }
             }, 
             function(err) { console.warn("Live tracking warning:", err.message); }, 
-            { enableHighAccuracy: true, maximumAge: 10000, timeout: 10000 }
+            { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 }
         );
     }
 
@@ -749,8 +898,7 @@ function locateUser(callback) {
             }).addTo(map).bindPopup(popupContent);
             
             updateMapRadius(parseFloat(document.getElementById('searchRadius').value));
-            // Do NOT apply filters here automatically unless user searched
-            // applyFilters(); 
+            // Do not apply filters automatically here to keep initial "Best of" list
             if(callback) callback(true);
         },
         function() { alert('Unable to get location'); if(callback) callback(false); }
@@ -764,11 +912,11 @@ function applyFilters() {
     const centerPoint = L.latLng(searchAnchor.lat, searchAnchor.lng);
     const searchText = document.getElementById('searchInput').value.trim();
 
-    // REQ 4, 5, 6: Logic to HIDE shops if no search/filter is active.
-    // Logic: If Service is 'All' AND Search is Empty -> Show Nothing.
+    // Logic: If Service is 'All' AND Search is Empty -> Show Initial Best List again?
+    // User requirement: "this see more option is also applied when someone search..."
+    
     if (serviceType === 'all' && searchText === "") {
-        renderProvidersList([]);
-        addProvidersToMap([]);
+        renderInitialFeaturedShops();
         return;
     }
 
@@ -788,19 +936,25 @@ function applyFilters() {
         return matchService && matchRating && matchDistance && matchSearch;
     });
     
-    renderProvidersList(filtered);
-    addProvidersToMap(filtered);
+    // For search/filters, initially show top 4 then see more
+    const limit = 4;
+    const initialShow = filtered.slice(0, limit);
+    renderProvidersList(initialShow, filtered.length > limit, filtered); 
     
-    // REQ 6: If filtered by specific service type (e.g., Electrician), show all electricians on map.
-    // If results exist, zoom to fit bounds? (Optional, but good UX)
+    // Add ALL markers to map for context, or just the filtered ones?
+    // "when he click option electrician so show all electrician in map"
+    addProvidersToMap(filtered);
 }
 
-function renderProvidersList(listToRender) {
+function renderProvidersList(listToRender, showSeeMore = false, fullList = []) {
     const container = document.getElementById('providersContainer');
+    const seeMoreBtn = document.getElementById('seeMoreBtn');
+    
     container.innerHTML = '';
-    // REQ 4: If empty, show nothing or "Search to find shops"
+    
     if(listToRender.length === 0) { 
-        container.innerHTML = "<p style='text-align:center; color:#666; font-size: 0.9rem; margin-top: 10px;'>Select a service or search to see shops.</p>"; 
+        container.innerHTML = "<p style='text-align:center; color:#666; font-size: 0.9rem; margin-top: 10px;'>No shops found matching criteria.</p>"; 
+        seeMoreBtn.style.display = 'none';
         return; 
     }
     
@@ -819,7 +973,6 @@ function renderProvidersList(listToRender) {
             <div class="provider-rating"><span class="stars">${stars}</span><span>${provider.rating}</span><span class="status-badge ${statusClass}">${statusText}</span></div>
             <div class="provider-address"><i class="fas fa-map-marker-alt"></i> ${provider.address}</div>`;
          
-         // REQ 5 & 6: When clicking a card, we want to isolate/highlight it strictly
          card.addEventListener('click', function() { 
              filterToSingleShop(provider.id);
              showProviderOnMap(provider.id); 
@@ -828,11 +981,17 @@ function renderProvidersList(listToRender) {
          
          container.appendChild(card);
     });
+
+    if (showSeeMore) {
+        seeMoreBtn.style.display = 'block';
+        seeMoreBtn.onclick = () => renderProvidersList(fullList, false); // Show full list on click
+    } else {
+        seeMoreBtn.style.display = 'none';
+    }
 }
 
-// REQ 5: Function to show ONLY this electrician (or shop) in Map and List
+// Function to show ONLY this shop in Map and List (Strict Filter)
 function filterToSingleShop(id) {
-    // 1. Filter Map
     markers.forEach(marker => {
         if(marker.providerId === id) {
             if(!map.hasLayer(marker)) map.addLayer(marker);
@@ -841,10 +1000,7 @@ function filterToSingleShop(id) {
         }
     });
 
-    // 2. Filter List
-    // We re-render the list to show only this card
     const container = document.getElementById('providersContainer');
-    // We need to keep the click event working, so we just hide others via CSS or re-render
     const cards = container.querySelectorAll('.provider-card');
     cards.forEach(card => {
         if (card.getAttribute('data-id') == id) {
@@ -853,6 +1009,7 @@ function filterToSingleShop(id) {
             card.style.display = 'none';
         }
     });
+    document.getElementById('seeMoreBtn').style.display = 'none';
 }
 
 function addProvidersToMap(listToRender) {
@@ -863,7 +1020,6 @@ function addProvidersToMap(listToRender) {
         const marker = L.marker([provider.lat, provider.lng]).addTo(map).bindPopup(createPopupContent(provider));
         marker.providerId = provider.id;
         marker.on('click', function() { 
-            // Also trigger single view when marker clicked?
             filterToSingleShop(provider.id);
             highlightProviderCard(provider.id); 
         });
@@ -1073,9 +1229,11 @@ function resetMapView() {
     document.getElementById('toggleRouteInfoBtn').style.display = 'none';
     updateMapRadius(1);
     
-    // Reset search input and filters clears the map (Req 4)
+    // Reset search
     document.getElementById('searchInput').value = "";
-    applyFilters();
+    renderInitialFeaturedShops();
+    // Re-add all markers
+    addProvidersToMap(providers);
 }
 
 function createPopupContent(provider) {
@@ -1136,11 +1294,6 @@ function setBasemap(layerName) {
     }
 }
 
-function performSearch() {
-    // Calling applyFilters handles search text logic now.
-    applyFilters();
-}
-
 function toggleLocationPicker() {
     isPickingLocation = true;
     document.getElementById('addProviderModal').style.display = 'none';
@@ -1189,7 +1342,7 @@ function updateStarVisuals(rating) {
     });
 }
 
-// --- INTELLIGENT CHATBOT (UPDATED) ---
+// --- INTELLIGENT CHATBOT (UPDATED REQ 5) ---
 
 function initChatbot() {
     const toggleBtn = document.getElementById('chatbotToggle');
@@ -1202,7 +1355,7 @@ function initChatbot() {
         chatWindow.classList.toggle('open');
         if (chatWindow.classList.contains('open')) {
             if (document.getElementById('chatMessages').children.length === 0) {
-                appendBotMessage("Hi! I'm ServiceBot. Ask me about any button or feature on the screen!");
+                appendBotMessage("Hi! I'm ServiceBot. Ask me about finding shops, registering, or using the map.");
             }
         }
     });
@@ -1244,63 +1397,26 @@ function appendBotMessage(text) {
 }
 
 function processChatCommand(cmd) {
-    // 1. BUTTON & UI EXPLANATIONS
-    if (/apply filter/.test(cmd)) {
-        return "The **Apply Filters** button updates the list of shops and the map markers based on the Service Type, Rating, and Radius you selected.";
-    }
-    if (/radius|slider|km/.test(cmd)) {
-        return "The **Search Radius** slider lets you choose how far to search. It ranges from 0.5 km to 5 km around your current location.";
-    }
-    if (/locate|location button|arrow/.test(cmd)) {
-        return "The **Locate Me** button (arrow icon) finds your exact GPS position, centers the map on you, and shows a popup with your coordinates that you can copy.";
-    }
-    if (/reset|compress|refresh/.test(cmd)) {
-        return "The **Reset Map** button clears any active routes and moves the camera back to the default Gulberg area.";
-    }
-    if (/satellite|view|osm/.test(cmd)) {
-        return "You can switch between **Street View** (standard map) and **Satellite View** (real imagery) using the map buttons on the right.";
-    }
-    if (/narrator|voice|speak/.test(cmd)) {
-        return "The **Narrator** button (speaker icon) reads out driving directions loud so you don't have to look at the screen.";
-    }
-    if (/route info|list icon/.test(cmd)) {
-        return "The **Route Info** button (list icon) toggles the text-based turn-by-turn instructions window.";
-    }
-    if (/admin panel|geoserver|layer/.test(cmd)) {
-        return "The **Admin Panel** allows authorized users to load special map layers from GeoServer (like Punjab Boundary or Shop Data).";
-    }
-
-    // 2. SEARCHING SERVICES
-    if (/find|search|show|where is|looking for/.test(cmd)) {
-        if (/carpenter/.test(cmd)) return "I have filtered the map for **Carpenters**. Look for wood-work specialists in the list.";
-        if (/plumber/.test(cmd)) return "Showing **Plumbers** near you.";
-        if (/electrician/.test(cmd)) return "Showing **Electricians** in your area.";
-        if (/mechanic|auto/.test(cmd)) return "Showing **Mechanic** shops.";
-        if (/ac|hvac/.test(cmd)) return "Showing **AC Repair** services.";
-        if (/painter/.test(cmd)) return "Showing **Painters**.";
-        if (/welder/.test(cmd)) return "Showing **Welders**.";
-        
-        return "You can use the Search Bar or Filter Dropdown to find Plumbers, Electricians, Carpenters, Painters, and more.";
-    }
-
-    // 3. GENERAL HELP
-    if (/hi|hello|help/.test(cmd)) {
-        return "Hello! I can explain any button on the screen or help you find a shop. Try asking 'What does the locate button do?' or 'Find a carpenter'.";
-    }
-
-    // 4. ROUTING
-    if (/route|navigate/.test(cmd)) {
-        return "To navigate: Click a shop marker -> Click 'View Details' -> Click 'Route'. I will draw the path and show instructions.";
-    }
+    // Greetings & Basics
+    if (/hi|hello|hey|greetings/.test(cmd)) return "Hello there! How can I help you find a service today?";
+    if (/who are you|your name/.test(cmd)) return "I am ServiceBot, your virtual assistant for this locator app.";
     
-    // 5. REGISTRATION
-    if (/register|signup/.test(cmd)) {
-        return "Use the **Register** button in the top header to create a new account (User or Provider).";
-    }
-
-    if (/thank/.test(cmd)) return "You're welcome!";
-
-    return "I am not sure about that. Try asking about a specific button (e.g., 'What is the radius slider?') or a service.";
+    // Services specific
+    if (/electrician/.test(cmd)) return "To find an Electrician, type 'Electrician' in the search bar or select it from the filter dropdown.";
+    if (/plumber/.test(cmd)) return "Looking for a Plumber? Use the Service Type filter to see all plumbers nearby.";
+    if (/mechanic/.test(cmd)) return "We have mechanics listed! Check the map or search 'Mechanic'.";
+    
+    // Functionality
+    if (/add shop|register shop|add my shop/.test(cmd)) return "To add your shop:<br>1. Register as a 'Service Provider'.<br>2. Login.<br>3. Click the 'Add Shop' button.";
+    if (/review|rating/.test(cmd)) return "You can rate a shop by clicking on it, viewing details, and logging in as a user.";
+    if (/route|navigation|directions/.test(cmd)) return "Click on a shop marker, select 'View Details', then click 'Route'. I'll show you the way!";
+    
+    // Buttons
+    if (/locate|location button/.test(cmd)) return "The arrow icon finds your current GPS location.";
+    if (/reset map/.test(cmd)) return "The compress icon resets the map view to the default area.";
+    
+    // Fallback
+    return "I'm not sure about that yet. Try asking 'How to add a shop' or 'Find an electrician'.";
 }
 
 // --- GEOSERVER LAYERS LOGIC ---
@@ -1334,7 +1450,6 @@ function togglePunjabLayer() {
     }
 }
 
-// --- NEW FUNCTION: Toggle Second Layer ---
 function toggleNewLayer() {
     const btn = document.getElementById('toggleNewLayerBtn');
 

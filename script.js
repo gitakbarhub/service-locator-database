@@ -35,8 +35,8 @@ document.addEventListener('DOMContentLoaded', function() {
     initChatbot(); 
     initDraggable(); 
     
-    // Check notifications periodically (Simulated)
-    setInterval(checkNotifications, 5000);
+    // Check notifications periodically from Cloud
+    setInterval(checkNotifications, 10000); // Every 10 seconds
 });
 
 // --- CLOUD FUNCTIONS ---
@@ -425,7 +425,6 @@ function handleSearchInput(e) {
         { id: 'welder', label: 'Welder' }
     ];
 
-    // Filter categories that match input
     const matchedServices = allServices.filter(s => s.label.toLowerCase().startsWith(val));
 
     // 1. Show Main Categories
@@ -487,7 +486,7 @@ function openAdminPanel() {
     document.getElementById('adminListSection').style.display = 'none';
     document.getElementById('adminModal').style.display = 'block';
     
-    renderAdminHelpTickets(); // Load help tickets
+    renderAdminHelpTickets(); // Load help tickets from DB
 }
 
 function resetSystemData() {
@@ -573,9 +572,7 @@ function setRouteProfile(profile) {
     document.getElementById(`mode-${profile}`).classList.add('active');
     
     if (routingControl) {
-        // REQ 1: Use OSRM profile names. 'cycling' works for Bike.
         const osrmProfile = (profile === 'cycling') ? 'cycling' : profile;
-        
         const router = L.Routing.osrmv1({
             serviceUrl: 'https://router.project-osrm.org/route/v1',
             profile: osrmProfile
@@ -716,6 +713,7 @@ function executeRouting(providerId, reverse) {
 }
 
 function setupRoutingControl(p1, p2, draggable, startLabel, endLabel) {
+    // REQ 1: Use proper OSRM profile ('cycling' is correct for Bike)
     const osrmProfile = (currentRouteProfile === 'cycling') ? 'cycling' : currentRouteProfile;
 
     routingControl = L.Routing.control({
@@ -727,7 +725,6 @@ function setupRoutingControl(p1, p2, draggable, startLabel, endLabel) {
         }),
         lineOptions: { styles: [{color: '#667eea', opacity: 1, weight: 5}] },
         createMarker: function(i, wp, nWps) {
-            // Simplified marker creation
              return L.marker(wp.latLng, { draggable: true }).bindPopup(i===0 ? startLabel : endLabel);
         },
         showAlternatives: false,
@@ -735,7 +732,31 @@ function setupRoutingControl(p1, p2, draggable, startLabel, endLabel) {
         containerClassName: 'leaflet-routing-container'
     }).addTo(map);
 
-    // ... (Existing Routing Event Listeners for Instructions/Voice) ...
+    // Event listeners
+    routingControl.on('routesfound', function(e) {
+        const routes = e.routes;
+        const summary = routes[0].summary;
+        const totalDistKm = (summary.totalDistance / 1000).toFixed(1);
+        
+        let timeMins = Math.round(summary.totalTime / 60);
+        let modeText = "Bike";
+
+        if (currentRouteProfile === 'walking') modeText = "Walking";
+        else if (currentRouteProfile === 'driving') modeText = "Car";
+
+        let msg = `${modeText} route. Distance ${totalDistKm} km. Time approx ${timeMins} minutes.`;
+        speakText(msg);
+        
+        setTimeout(() => {
+            const container = document.querySelector('.leaflet-routing-container');
+            if(container) {
+                container.style.display = 'block';
+                container.classList.remove('hidden-instructions');
+                const header = container.querySelector('h2') || container.querySelector('h3');
+                if(header) header.textContent = `${timeMins} min (${totalDistKm} km) - ${modeText}`;
+            }
+        }, 500);
+    });
 }
 
 
@@ -795,7 +816,7 @@ function locateUser(callback) {
 }
 
 function applyFilters() {
-    // REQ 4: Route Cleanup
+    // REQ 4: Cleanup old route lines when filter changes
     if(routingControl) {
         map.removeControl(routingControl);
         routingControl = null;
@@ -1129,6 +1150,7 @@ function resetMapView() {
     // Reset search
     document.getElementById('searchInput').value = "";
     renderInitialFeaturedShops();
+    addProvidersToMap(providers);
 }
 
 function createPopupContent(provider) {
@@ -1237,9 +1259,143 @@ function updateStarVisuals(rating) {
     });
 }
 
-// --- NEW FEATURES (REQ 5, 6, 7, 8, 9, 10) ---
+// --- INTELLIGENT CHATBOT (UPDATED) ---
 
-// 1. Service Requests (Mocked)
+function initChatbot() {
+    const toggleBtn = document.getElementById('chatbotToggle');
+    const chatWindow = document.getElementById('chatWindow');
+    const closeBtn = document.getElementById('closeChatBtn');
+    const sendBtn = document.getElementById('sendChatBtn');
+    const input = document.getElementById('chatInput');
+
+    toggleBtn.addEventListener('click', () => {
+        chatWindow.classList.toggle('open');
+        if (chatWindow.classList.contains('open')) {
+            if (document.getElementById('chatMessages').children.length === 0) {
+                appendBotMessage("Hi! I'm ServiceBot. Ask me about finding shops, registering, or using the map.");
+            }
+        }
+    });
+
+    closeBtn.addEventListener('click', () => chatWindow.classList.remove('open'));
+    
+    const handleUserSend = async () => {
+        const text = input.value.trim();
+        if (!text) return;
+        appendUserMessage(text);
+        input.value = '';
+
+        setTimeout(() => {
+            const response = processChatCommand(text.toLowerCase());
+            appendBotMessage(response);
+        }, 500);
+    };
+
+    sendBtn.addEventListener('click', handleUserSend);
+    input.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleUserSend(); });
+}
+
+function appendUserMessage(text) {
+    const div = document.createElement('div');
+    div.className = 'message-bubble user-msg';
+    div.textContent = text;
+    const container = document.getElementById('chatMessages');
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+}
+
+function appendBotMessage(text) {
+    const div = document.createElement('div');
+    div.className = 'message-bubble bot-msg';
+    div.innerHTML = text.replace(/\n/g, '<br>');
+    const container = document.getElementById('chatMessages');
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+}
+
+function processChatCommand(cmd) {
+    if (/hi|hello|hey|greetings/.test(cmd)) return "Hello there! How can I help you find a service today?";
+    if (/who are you|your name/.test(cmd)) return "I am ServiceBot, your virtual assistant for this locator app.";
+    
+    if (/electrician/.test(cmd)) return "To find an Electrician, type 'Electrician' in the search bar or select it from the filter dropdown.";
+    if (/plumber/.test(cmd)) return "Looking for a Plumber? Use the Service Type filter to see all plumbers nearby.";
+    if (/mechanic/.test(cmd)) return "We have mechanics listed! Check the map or search 'Mechanic'.";
+    
+    if (/add shop|register shop|add my shop/.test(cmd)) return "To add your shop:<br>1. Register as a 'Service Provider'.<br>2. Login.<br>3. Click the 'Add Shop' button.";
+    if (/review|rating/.test(cmd)) return "You can rate a shop by clicking on it, viewing details, and logging in as a user.";
+    if (/route|navigation|directions/.test(cmd)) return "Click on a shop marker, select 'View Details', then click 'Route'. I'll show you the way!";
+    
+    if (/locate|location button/.test(cmd)) return "The arrow icon finds your current GPS location.";
+    if (/reset map/.test(cmd)) return "The compress icon resets the map view to the default area.";
+    
+    return "I'm not sure about that yet. Try asking 'How to add a shop' or 'Find an electrician'.";
+}
+
+// --- GEOSERVER LAYERS LOGIC ---
+
+function togglePunjabLayer() {
+    const btn = document.getElementById('togglePunjabBtn');
+    
+    if (punjabLayer && map.hasLayer(punjabLayer)) {
+        map.removeLayer(punjabLayer);
+        punjabLayer = null;
+        btn.textContent = "Load Punjab Layer";
+        btn.style.background = ""; 
+        btn.style.color = "";
+        btn.style.borderColor = "#d69e2e";
+    } else {
+        punjabLayer = L.tileLayer.wms(`${NGROK_HOST}/geoserver/wms`, {
+            layers: 'myprojectwebgis:punjab_boundary', 
+            format: 'image/png',
+            transparent: true,
+            version: '1.1.0',
+            tiled: false, 
+            styles: '',
+            attribution: '© Local GeoServer (Punjab)'
+        });
+        punjabLayer.addTo(map);
+        map.flyTo([31.1704, 72.7097], 7, { animate: true, duration: 1.5 });
+        
+        btn.textContent = "Hide Punjab Layer";
+        btn.style.background = "#d69e2e";
+        btn.style.color = "white";
+    }
+}
+
+function toggleNewLayer() {
+    const btn = document.getElementById('toggleNewLayerBtn');
+
+    if (newLayer && map.hasLayer(newLayer)) {
+        map.removeLayer(newLayer);
+        newLayer = null;
+        btn.textContent = "Shop Data Layer";
+        btn.style.background = ""; 
+        btn.style.color = "";
+    } else {
+        const layerName = 'myprojectwebgis:shops'; 
+        alert(`Attempting to load layer: ${layerName} from Admin Console`);
+
+        newLayer = L.tileLayer.wms(`${NGROK_HOST}/geoserver/wms`, {
+            layers: 'myprojectwebgis:shops', 
+            format: 'image/png',
+            transparent: true,
+            version: '1.1.0',
+            tiled: false, 
+            styles: '',
+            attribution: '© Local GeoServer (New Layer)'
+        });
+        newLayer.addTo(map);
+        map.flyTo([31.4880, 74.3430], 13, { animate: true, duration: 1.5 });
+        
+        btn.textContent = "Hide Shop Data";
+        btn.style.background = "#2b6cb0";
+        btn.style.color = "white";
+    }
+}
+
+// --- CLOUD API INTEGRATION ---
+
+// 1. Service Requests (CLOUD)
 function openServiceRequestModal() {
     document.getElementById('providerDetailsModal').style.display = 'none';
     const modal = document.getElementById('serviceRequestModal');
@@ -1248,7 +1404,7 @@ function openServiceRequestModal() {
     if(currentUser) document.getElementById('reqName').value = currentUser.username;
 }
 
-function handleServiceRequestSubmit(e) {
+async function handleServiceRequestSubmit(e) {
     e.preventDefault();
     if(!userLocation) {
         alert("We need your location first.");
@@ -1256,44 +1412,33 @@ function handleServiceRequestSubmit(e) {
         return;
     }
 
-    const providerId = document.getElementById('reqProviderId').value;
     const reqData = {
-        id: Date.now(),
-        providerId: providerId,
+        providerId: document.getElementById('reqProviderId').value,
         user: document.getElementById('reqName').value,
         phone: document.getElementById('reqPhone').value,
         address: document.getElementById('reqAddress').value,
         lat: userLocation.lat,
-        lng: userLocation.lng,
-        status: 'sent', // sent, delivered, read
-        timestamp: Date.now()
+        lng: userLocation.lng
     };
 
-    // Store in localStorage
-    const requests = JSON.parse(localStorage.getItem('serviceRequests') || '[]');
-    requests.push(reqData);
-    localStorage.setItem('serviceRequests', JSON.stringify(requests));
-
-    alert("Request Sent! Status: Sent ✓");
-    document.getElementById('serviceRequestModal').style.display = 'none';
-    
-    // Simulate Delivery after 3s
-    setTimeout(() => {
-        reqData.status = 'delivered';
-        updateRequestStatus(reqData.id, 'delivered');
-    }, 3000);
-}
-
-function updateRequestStatus(reqId, status) {
-    const requests = JSON.parse(localStorage.getItem('serviceRequests') || '[]');
-    const idx = requests.findIndex(r => r.id === reqId);
-    if(idx !== -1) {
-        requests[idx].status = status;
-        localStorage.setItem('serviceRequests', JSON.stringify(requests));
+    try {
+        const response = await fetch('/api/requests', {
+            method: 'POST',
+            body: JSON.stringify(reqData)
+        });
+        
+        if (response.ok) {
+            alert("Request Sent! Status: Sent ✓");
+            document.getElementById('serviceRequestModal').style.display = 'none';
+        } else {
+            alert("Failed to send request.");
+        }
+    } catch(err) {
+        console.error(err);
     }
 }
 
-// 2. Help System (Mocked)
+// 2. Help System (CLOUD)
 function openHelpModal(role) {
     document.getElementById('helpModal').style.display = 'block';
     const roleSelect = document.getElementById('helpRole');
@@ -1301,74 +1446,88 @@ function openHelpModal(role) {
     if(currentUser) document.getElementById('helpName').value = currentUser.username;
 }
 
-function handleHelpSubmit(e) {
+async function handleHelpSubmit(e) {
     e.preventDefault();
     const helpData = {
-        id: Date.now(),
         name: document.getElementById('helpName').value,
         role: document.getElementById('helpRole').value,
-        problem: document.getElementById('helpProblem').value,
-        timestamp: Date.now()
+        problem: document.getElementById('helpProblem').value
     };
 
-    const tickets = JSON.parse(localStorage.getItem('helpTickets') || '[]');
-    tickets.push(helpData);
-    localStorage.setItem('helpTickets', JSON.stringify(tickets));
-
-    alert("Ticket sent to Admin!");
-    document.getElementById('helpModal').style.display = 'none';
+    try {
+        const response = await fetch('/api/help', {
+            method: 'POST',
+            body: JSON.stringify(helpData)
+        });
+        
+        if(response.ok) {
+            alert("Ticket sent to Admin!");
+            document.getElementById('helpModal').style.display = 'none';
+        } else {
+            alert("Failed to send help ticket.");
+        }
+    } catch(err) { console.error(err); }
 }
 
-// 3. Admin Help View
-function renderAdminHelpTickets() {
+async function renderAdminHelpTickets() {
     const container = document.getElementById('adminHelpContainer');
     if(!container) return;
-    const tickets = JSON.parse(localStorage.getItem('helpTickets') || '[]');
-    container.innerHTML = '';
+    container.innerHTML = 'Loading...';
     
-    if(tickets.length === 0) {
-        container.innerHTML = '<p style="padding:10px; color:#666;">No tickets yet.</p>';
-        return;
-    }
+    try {
+        const response = await fetch('/api/help');
+        const tickets = await response.json();
+        
+        container.innerHTML = '';
+        if(tickets.length === 0) {
+            container.innerHTML = '<p style="padding:10px; color:#666;">No tickets yet.</p>';
+            return;
+        }
 
-    tickets.forEach(t => {
-        const item = document.createElement('div');
-        item.className = 'admin-list-item';
-        item.innerHTML = `
-            <div>
-                <strong>${t.name}</strong> (${t.role})<br>
-                <small>${t.problem}</small>
-            </div>
-            <button class="btn-primary" style="padding:2px 8px; font-size:0.8rem;" onclick="alert('Replying to ${t.name}...')">Reply</button>
-        `;
-        container.appendChild(item);
-    });
+        tickets.forEach(t => {
+            const item = document.createElement('div');
+            item.className = 'admin-list-item';
+            item.innerHTML = `
+                <div>
+                    <strong>${t.name}</strong> (${t.role})<br>
+                    <small>${t.problem}</small>
+                </div>
+                <button class="btn-primary" style="padding:2px 8px; font-size:0.8rem;" onclick="alert('Replying feature pending...')">Reply</button>
+            `;
+            container.appendChild(item);
+        });
+    } catch(err) { console.error(err); }
 }
 
-// 4. Notifications System
-function checkNotifications() {
-    // Only if logged in
+// 3. Notifications System (CLOUD)
+async function checkNotifications() {
     if(!currentUser) return;
     
     const notifBadge = document.getElementById('notifBadge');
     let count = 0;
     const notifs = [];
 
-    // Check Service Requests (If Provider)
-    if(currentUser.role === 'provider' || currentUser.role === 'admin') { // Admin sees all for demo
-        const requests = JSON.parse(localStorage.getItem('serviceRequests') || '[]');
-        // Filter requests for THIS provider (or admin sees all)
-        // Note: Real app would filter by ID. Demo filters loosely.
-        const myReqs = requests.filter(r => (currentUser.role === 'admin' || r.providerId == currentUser.id) && r.status !== 'read');
-        count += myReqs.length;
-        myReqs.forEach(r => notifs.push({ type: 'request', data: r }));
+    // Fetch Requests
+    if(currentUser.role === 'provider' || currentUser.role === 'admin') { 
+        try {
+            const res = await fetch(`/api/requests?providerId=${currentUser.id}&role=${currentUser.role}`);
+            const requests = await res.json();
+            // Filter unread
+            const unread = requests.filter(r => r.status !== 'read');
+            count += unread.length;
+            unread.forEach(r => notifs.push({ type: 'request', data: r }));
+        } catch(e) { console.error(e); }
     }
     
-    // Check Help Tickets (If Admin)
+    // Fetch Help (Admin only)
     if(currentUser.role === 'admin') {
-        const tickets = JSON.parse(localStorage.getItem('helpTickets') || '[]');
-        count += tickets.length; // Count all tickets for now
-        tickets.forEach(t => notifs.push({ type: 'help', data: t }));
+        try {
+            const res = await fetch('/api/help');
+            const tickets = await res.json();
+            // Count all open tickets? Or simple count for now.
+            count += tickets.length;
+            tickets.forEach(t => notifs.push({ type: 'help', data: t }));
+        } catch(e) { console.error(e); }
     }
 
     if(count > 0) {
@@ -1378,7 +1537,7 @@ function checkNotifications() {
         notifBadge.style.display = 'none';
     }
     
-    window.currentNotifs = notifs; // Store for modal
+    window.currentNotifs = notifs; 
 }
 
 function openNotificationsModal() {
@@ -1396,7 +1555,7 @@ function openNotificationsModal() {
             if(n.type === 'request') {
                 item.innerHTML = `
                     <div style="font-weight:bold;">New Service Request</div>
-                    <div>From: ${n.data.user} (${n.data.phone})</div>
+                    <div>From: ${n.data.user_name} (${n.data.phone})</div>
                     <div style="font-size:0.85rem; color:#666;">${n.data.address || 'GPS Location'}</div>
                     <button class="btn-primary" style="margin-top:5px; font-size:0.8rem;" onclick='acceptRequest(${JSON.stringify(n.data)})'>View & Route</button>
                 `;
@@ -1414,15 +1573,20 @@ function openNotificationsModal() {
     modal.style.display = 'block';
 }
 
-function acceptRequest(reqData) {
-    // Mark as read (Blue Tick)
-    updateRequestStatus(reqData.id, 'read');
+async function acceptRequest(reqData) {
+    // Mark as read (Blue Tick logic) via API
+    try {
+        await fetch('/api/requests', {
+            method: 'PUT',
+            body: JSON.stringify({ id: reqData.id, status: 'read' })
+        });
+    } catch(e) { console.error(e); }
     
     document.getElementById('notificationsModal').style.display = 'none';
     
     // Draw Route Provider -> User
-    // We assume Provider is at current location for demo, or we can fetch shop loc.
-    // Let's assume provider is at current GPS.
+    // Note: Database stores as user_name/phone, verify field names from SQL
+    // The object passed here is from DB row, so it has .lat, .lng
     routeProviderToUser(reqData);
 }
 

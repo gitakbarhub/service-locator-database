@@ -304,7 +304,9 @@ body {
         
         transform: translateY(calc(100% - 35px)); 
         transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
-        padding: 0 1.5rem 1.5rem 1.5rem;
+        
+        /* REQ 1: Added top padding so header isn't hidden by the handle */
+        padding: 50px 1.5rem 1.5rem 1.5rem;
     }
 
     .sidebar.expanded {
@@ -318,16 +320,16 @@ body {
         align-items: center;
         width: 100%;
         height: 40px; 
-        position: sticky; /* Keeps it at the top while scrolling */
+        position: absolute; /* Changed to absolute to sit at very top */
         top: 0; 
+        left: 0;
         z-index: 5000;
         cursor: pointer;
         background: #667eea;
         border-radius: 20px 20px 0 0;
-        margin-bottom: 5px;
-        margin-left: -1.5rem; 
-        width: calc(100% + 3rem); 
-        margin-top: -1.5rem; 
+        /* Removed negative margins to clean up positioning */
+        margin: 0;
+        width: 100%; 
         box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
     

@@ -83,6 +83,7 @@ body {
 .search-bar button { padding: 0.75rem 1.5rem; border: none; border-radius: 0 25px 25px 0; background: #4a5568; color: white; cursor: pointer; transition: background 0.3s; }
 .search-bar button:hover { background: #2d3748; }
 
+/* REQ 4: Z-Index Fix for Mobile */
 .search-results {
     position: absolute;
     top: 100%;
@@ -93,7 +94,7 @@ body {
     box-shadow: 0 4px 10px rgba(0,0,0,0.2);
     max-height: 400px;
     overflow-y: auto;
-    z-index: 1200;
+    z-index: 10000; 
     display: none;
 }
 .search-results.active { display: block; }
@@ -150,7 +151,8 @@ body {
 .providers-list { margin-top: 2rem; }
 .provider-card { background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; cursor: pointer; transition: all 0.3s; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
 .provider-card:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-color: #667eea; }
-.provider-card.active { border-color: #667eea; background: #f7fafc; }
+/* REQ 3: Active style to differentiate */
+.provider-card.active { border: 2px solid #667eea; background: #ebf8ff; }
 .provider-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem; }
 .provider-name { font-weight: 600; color: #2d3748; }
 .provider-service { background: #edf2f7; color: #4a5568; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.8rem; font-weight: 500; }
@@ -235,7 +237,6 @@ body {
 .dest-popup-btn { background: #667eea; color: white; border: none; padding: 5px; border-radius: 4px; cursor: pointer; margin-top: 5px; font-weight: bold; }
 .dest-popup-btn:hover { background: #5a67d8; }
 
-/* Highlight the current instruction */
 .instruction-active { background-color: #667eea !important; color: white !important; font-weight: bold; border-left: 4px solid #2b6cb0; }
 .leaflet-routing-alt tr:hover { background-color: #f0f4f8; }
 
@@ -383,12 +384,12 @@ body {
         transform: rotate(180deg);
     }
     
-    /* Move Chatbot Up on Mobile so it doesn't overlap sidebar handle */
+    /* REQ 2: Chatbot adjusted to avoid slider overlap */
     .chat-toggle-btn {
-        bottom: 90px !important;
+        bottom: 60px !important;
     }
     .chat-window {
-        bottom: 160px !important;
+        bottom: 125px !important;
     }
     
     /* --- ROUTING WINDOW (VERTICAL RECTANGLE, RIGHT ALIGNED) --- */

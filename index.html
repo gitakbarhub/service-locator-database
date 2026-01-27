@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -9,6 +10,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
+
 <body>
     <div class="container">
         <header class="header">
@@ -19,7 +21,7 @@
                     <div class="subtitle">Gopal Nagar Gulberg 3 Lahore</div>
                 </div>
             </div>
-            
+
             <div class="auth-section">
                 <div id="notificationArea" style="display:none; position:relative; margin-right:10px; cursor:pointer;">
                     <i class="fas fa-bell" style="font-size:1.2rem;"></i>
@@ -27,21 +29,25 @@
                 </div>
 
                 <div id="loggedOutView">
-                    <button id="helpGuestBtn" class="btn-secondary-light"><i class="fas fa-question-circle"></i> Help</button>
+                    <button id="helpGuestBtn" class="btn-secondary-light"><i class="fas fa-question-circle"></i>
+                        Help</button>
                     <button id="loginBtnNav" class="btn-secondary-light">Login</button>
                     <button id="registerBtnNav" class="btn-primary">Register</button>
                 </div>
                 <div id="loggedInView" style="display:none;">
                     <span id="welcomeUser">Hi, User</span>
-                    
-                    <button id="helpUserBtn" class="btn-secondary-light" style="margin-right:5px;"><i class="fas fa-question-circle"></i></button>
+
+                    <button id="helpUserBtn" class="btn-secondary-light" style="margin-right:5px;"><i
+                            class="fas fa-question-circle"></i></button>
+                    <button id="myRequestsBtn" class="btn-secondary-light" style="margin-right:5px;"
+                        onclick="openMyRequestsModal()">Requests</button>
 
                     <button id="addProviderBtnMobile" class="btn-primary mobile-add-btn" style="display:none;">
                         <i class="fas fa-plus"></i> Add Shop
                     </button>
-                    
+
                     <button id="adminPanelBtn" class="btn-warning" style="display:none;">Admin Panel</button>
-                    
+
                     <button id="logoutBtn" class="btn-secondary-light" title="Exit / Logout">
                         Logout
                     </button>
@@ -53,7 +59,7 @@
                 <div id="searchResults" class="search-results"></div>
                 <button id="searchBtn"><i class="fas fa-search"></i></button>
             </div>
-            
+
             <div class="user-actions">
                 <button id="addProviderBtn" class="btn-primary" style="display:none;">
                     <i class="fas fa-plus"></i> Add Shop
@@ -65,7 +71,7 @@
             <aside class="sidebar">
                 <div class="filters">
                     <h3>Filter Area Shops</h3>
-                    
+
                     <div class="filter-group">
                         <label for="serviceType">Service Type</label>
                         <select id="serviceType">
@@ -92,22 +98,25 @@
                             <option value="1">1+ Stars</option>
                         </select>
                     </div>
-                    
+
                     <div class="filter-group">
                         <label for="searchRadius">Search Radius: <span id="radiusValue">1 km</span></label>
                         <input type="range" id="searchRadius" min="0.5" max="5" value="1" step="0.5">
                     </div>
 
                     <button id="applyFilters" class="btn-primary">Apply Filters</button>
-                    
-                    <div id="adminGeoPanel" class="filter-group" style="border-top: 2px dashed #cbd5e0; margin-top: 20px; padding-top: 15px; display: none;">
+
+                    <div id="adminGeoPanel" class="filter-group"
+                        style="border-top: 2px dashed #cbd5e0; margin-top: 20px; padding-top: 15px; display: none;">
                         <label style="color: #d69e2e;"><i class="fas fa-server"></i> Local GeoServer (Admin)</label>
-                        
-                        <button id="togglePunjabBtn" class="btn-secondary" style="border: 1px solid #d69e2e; width: 100%; margin-bottom: 8px;">
+
+                        <button id="togglePunjabBtn" class="btn-secondary"
+                            style="border: 1px solid #d69e2e; width: 100%; margin-bottom: 8px;">
                             Load Punjab Layer
                         </button>
-                        
-                        <button id="toggleNewLayerBtn" class="btn-secondary" style="border: 1px solid #2b6cb0; width: 100%;">
+
+                        <button id="toggleNewLayerBtn" class="btn-secondary"
+                            style="border: 1px solid #2b6cb0; width: 100%;">
                             Shop Data Layer
                         </button>
                     </div>
@@ -116,7 +125,8 @@
                 <div class="providers-list">
                     <h3>Shops in Area</h3>
                     <div id="providersContainer"></div>
-                    <button id="seeMoreBtn" class="btn-secondary" style="display:none; margin-top:10px;">See More</button>
+                    <button id="seeMoreBtn" class="btn-secondary" style="display:none; margin-top:10px;">See
+                        More</button>
                 </div>
             </aside>
 
@@ -138,10 +148,12 @@
                     <button id="setSatelliteMap" class="map-btn" title="Show Satellite View">
                         <i class="fas fa-satellite"></i>
                     </button>
-                    <button id="toggleNarratorBtn" class="map-btn" title="Toggle Voice Navigation" style="display:none;">
+                    <button id="toggleNarratorBtn" class="map-btn" title="Toggle Voice Navigation"
+                        style="display:none;">
                         <i class="fas fa-volume-up"></i>
                     </button>
-                    <button id="toggleRouteInfoBtn" class="map-btn" title="Toggle Route Instructions" style="display:none;">
+                    <button id="toggleRouteInfoBtn" class="map-btn" title="Toggle Route Instructions"
+                        style="display:none;">
                         <i class="fas fa-list-ul"></i>
                     </button>
                 </div>
@@ -189,6 +201,8 @@
                     <a href="#" id="forgotPasswordLink" style="font-size: 0.8rem; color: #667eea;">Forgot Password?</a>
                 </div>
                 <div class="form-actions">
+                    <button type="button" class="btn-secondary"
+                        onclick="document.getElementById('loginModal').style.display='none'">Cancel</button>
                     <button type="submit" class="btn-primary">Login</button>
                 </div>
             </form>
@@ -237,7 +251,8 @@
                 </div>
                 <div class="form-group">
                     <label>Security Question</label>
-                    <select id="regSecurityQuestion" required style="width:100%; padding:8px; border:1px solid #e2e8f0; border-radius:8px;">
+                    <select id="regSecurityQuestion" required
+                        style="width:100%; padding:8px; border:1px solid #e2e8f0; border-radius:8px;">
                         <option value="pet">What is your pet's name?</option>
                         <option value="city">What city were you born in?</option>
                         <option value="car">What was your first car?</option>
@@ -256,6 +271,8 @@
                     </select>
                 </div>
                 <div class="form-actions">
+                    <button type="button" class="btn-secondary"
+                        onclick="document.getElementById('registerModal').style.display='none'">Cancel</button>
                     <button type="submit" class="btn-primary">Create Account</button>
                 </div>
             </form>
@@ -286,7 +303,32 @@
                     <textarea id="helpProblem" rows="4" required placeholder="Describe your issue..."></textarea>
                 </div>
                 <div class="form-actions">
+                    <button type="button" class="btn-secondary" id="helpCancelBtn">Cancel</button>
                     <button type="submit" class="btn-primary">Send to Admin</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="replyModal" class="modal">
+        <div class="modal-content small-modal">
+            <div class="modal-header draggable-header">
+                <h2>Reply to Ticket</h2>
+                <span class="close">&times;</span>
+            </div>
+            <form id="replyForm">
+                <input type="hidden" id="replyTicketId">
+                <div class="form-group">
+                    <label>Replying To:</label>
+                    <input type="text" id="replyToName" disabled style="background:#f0f0f0;">
+                </div>
+                <div class="form-group">
+                    <label>Your Answer</label>
+                    <textarea id="replyMessage" rows="4" required placeholder="Type your answer..."></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" id="replyCancelBtn">Cancel</button>
+                    <button type="submit" class="btn-primary">Send Answer</button>
                 </div>
             </form>
         </div>
@@ -299,7 +341,19 @@
                 <span class="close">&times;</span>
             </div>
             <div id="notificationList" class="reviews-list" style="padding:20px; max-height:400px; overflow-y:auto;">
-                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="myRequestsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header draggable-header">
+                <h2>My Sent Requests</h2>
+                <span class="close">&times;</span>
+            </div>
+            <div id="myRequestList" class="reviews-list" style="padding:20px; max-height:400px; overflow-y:auto;">
+                <!-- List items with Delete button -->
+            </div>
         </div>
     </div>
 
@@ -327,6 +381,8 @@
                     <i class="fas fa-map-marker-alt"></i> We will send your current GPS location to the provider.
                 </div>
                 <div class="form-actions">
+                    <button type="button" class="btn-secondary"
+                        onclick="document.getElementById('serviceRequestModal').style.display='none'">Cancel</button>
                     <button type="submit" class="btn-primary">Send Request</button>
                 </div>
             </form>
@@ -353,11 +409,12 @@
                     </div>
                 </div>
 
-                <div id="adminListSection" style="display:none; margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px;">
+                <div id="adminListSection"
+                    style="display:none; margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px;">
                     <h3 id="adminListTitle" style="margin-bottom: 10px;">List</h3>
                     <div id="adminListContainer" class="admin-list-container"></div>
                 </div>
-                
+
                 <div style="margin-top:20px; border-top:1px solid #eee; padding-top:10px;">
                     <h3>Help Desk Tickets</h3>
                     <div id="adminHelpContainer" class="admin-list-container" style="height:150px;"></div>
@@ -376,7 +433,8 @@
                 <span class="close">&times;</span>
             </div>
             <form id="providerForm">
-                <input type="hidden" id="editProviderId"> <div class="form-group">
+                <input type="hidden" id="editProviderId">
+                <div class="form-group">
                     <label for="providerName">Shop Name</label>
                     <input type="text" id="providerName" required>
                 </div>
@@ -393,23 +451,27 @@
                         <option value="welder">Welder</option>
                     </select>
                 </div>
-                
+
                 <div style="display: flex; gap: 10px; padding: 0 1.5rem 1.5rem 1.5rem;">
                     <div style="flex:1;">
                         <label style="font-size:0.9rem; font-weight:600;">Open Time</label>
-                        <input type="time" id="providerOpenTime" required style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px;">
+                        <input type="time" id="providerOpenTime" required
+                            style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px;">
                     </div>
                     <div style="flex:1;">
                         <label style="font-size:0.9rem; font-weight:600;">Close Time</label>
-                        <input type="time" id="providerCloseTime" required style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px;">
+                        <input type="time" id="providerCloseTime" required
+                            style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px;">
                     </div>
                 </div>
 
                 <div class="form-group">
                     <label>Location (Auto-fill or Manual)</label>
                     <div style="display: flex; gap: 10px; margin-bottom: 5px;">
-                        <input type="number" id="newLat" step="any" placeholder="Latitude" style="flex:1; padding: 0.75rem; border:1px solid #e2e8f0; border-radius:8px;">
-                        <input type="number" id="newLng" step="any" placeholder="Longitude" style="flex:1; padding: 0.75rem; border:1px solid #e2e8f0; border-radius:8px;">
+                        <input type="number" id="newLat" step="any" placeholder="Latitude"
+                            style="flex:1; padding: 0.75rem; border:1px solid #e2e8f0; border-radius:8px;">
+                        <input type="number" id="newLng" step="any" placeholder="Longitude"
+                            style="flex:1; padding: 0.75rem; border:1px solid #e2e8f0; border-radius:8px;">
                     </div>
                     <div style="display: flex; gap: 10px; align-items: center;">
                         <button type="button" id="pickLocationBtn" class="btn-secondary" style="flex:1;">
@@ -427,7 +489,7 @@
                     <label for="providerAddress">Address / Shop No</label>
                     <input type="text" id="providerAddress" required>
                 </div>
-                
+
                 <div class="form-group">
                     <label for="providerImage">Shop Picture (Upload)</label>
                     <input type="file" id="providerImage" accept="image/*">
@@ -458,7 +520,7 @@
             <div class="provider-details">
                 <div class="detail-item">
                     <i class="fas fa-clock"></i>
-                    <span id="detailTiming"></span> 
+                    <span id="detailTiming"></span>
                     <span id="detailStatusBadge" class="status-badge"></span>
                 </div>
                 <div class="detail-item">
@@ -473,7 +535,7 @@
                     <i class="fas fa-map-marker-alt"></i>
                     <span id="detailAddress"></span>
                 </div>
-                
+
                 <div style="display:flex; gap:10px; margin: 0 1.5rem 1rem 1.5rem;">
                     <button id="getDirectionsBtn" class="btn-primary" style="flex:1;">
                         <i class="fas fa-directions"></i> Route (Me &rarr; Shop)
@@ -482,14 +544,14 @@
                         <i class="fas fa-ticket-alt"></i> Send Request
                     </button>
                 </div>
-                
+
                 <div class="rating-section">
                     <div class="current-rating">
                         <span>Average Rating: </span>
                         <div class="stars" id="detailRating"></div>
                         <span id="detailRatingValue"></span>
                     </div>
-                    
+
                     <div id="reviewSection" class="add-rating" style="display:none;">
                         <h4>Write a Review:</h4>
                         <div class="rating-stars">
@@ -499,11 +561,15 @@
                             <span class="star" data-rating="4">★</span>
                             <span class="star" data-rating="5">★</span>
                         </div>
-                        <textarea id="reviewText" placeholder="Share your experience..." rows="2" style="width:100%; margin-top:10px; padding:8px; border-radius:4px; border:1px solid #ddd;"></textarea>
-                        <button id="submitReviewBtn" class="btn-primary" style="margin-top:10px; width:auto; padding: 5px 15px;">Submit Review</button>
+                        <textarea id="reviewText" placeholder="Share your experience..." rows="2"
+                            style="width:100%; margin-top:10px; padding:8px; border-radius:4px; border:1px solid #ddd;"></textarea>
+                        <button id="submitReviewBtn" class="btn-primary"
+                            style="margin-top:10px; width:auto; padding: 5px 15px;">Submit Review</button>
                     </div>
                     <div id="loginToReviewMsg" style="margin-top:15px; color:#666; font-style: italic;">
-                        Please <a href="#" onclick="document.getElementById('loginModal').style.display='block'; document.getElementById('providerDetailsModal').style.display='none';">Login</a> to write reviews or request service.
+                        Please <a href="#"
+                            onclick="document.getElementById('loginModal').style.display='block'; document.getElementById('providerDetailsModal').style.display='none';">Login</a>
+                        to write reviews or request service.
                     </div>
 
                     <div class="reviews-list-container">
@@ -511,7 +577,8 @@
                         <div id="reviewsList" class="reviews-list"></div>
                     </div>
 
-                    <div id="ownerActions" style="margin-top: 2rem; border-top: 1px solid #eee; padding-top: 1rem; display:none; flex-direction: column; gap:10px;">
+                    <div id="ownerActions"
+                        style="margin-top: 2rem; border-top: 1px solid #eee; padding-top: 1rem; display:none; flex-direction: column; gap:10px;">
                         <button id="editProviderBtn" class="btn-secondary" style="width: 100%;">
                             <i class="fas fa-edit"></i> Modify Shop
                         </button>
@@ -528,4 +595,5 @@
     <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
     <script src="script.js"></script>
 </body>
+
 </html>

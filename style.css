@@ -410,15 +410,22 @@ body {
     .route-mode-controls { margin-right: 50px !important; margin-top: 5px !important; }
     
     .leaflet-routing-container { 
-        width: auto !important; 
-        max-width: 650px !important; 
-        max-height: 80vh !important;  
-        font-size: 11px !important; 
-        top: 65px !important; 
-        right: 60px !important; 
-        left: auto !important; 
+        width: 95% !important; 
+        max-width: none !important; 
+        height: auto !important;
+        max-height: 60vh !important;  
+        font-size: 13px !important; 
+        
+        /* Center on screen at top */
+        top: 60px !important; 
+        left: 50% !important; 
+        right: auto !important; 
+        transform: translateX(-50%) !important;
+        
         z-index: 100000 !important;
         overflow-y: auto !important;
+        background-color: white !important;
+        box-shadow: 0 0 20px rgba(0,0,0,0.5) !important;
     }
 
     /* Modal Adjustments */
